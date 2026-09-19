@@ -5,19 +5,19 @@ architectural rules this project follows.
 
 ## Requirements
 
-[Node.js](https://nodejs.org) and `npm`.
+[Bun](https://bun.sh) (used as the package manager and script runner).
 
 ## Commands
 
 | Command             | Description                                    |
 |----------------------|-------------------------------------------------|
-| `npm install`        | Install dependencies                            |
-| `npm run dev`        | Start the dev server (http://localhost:8080)    |
-| `npm run build`      | Type-check and build a production bundle to `dist` |
-| `npm run preview`    | Preview the production build locally            |
-| `npm run typecheck`  | Type-check without emitting                     |
-| `npm test`           | Run the Vitest test suite once                  |
-| `npm run test:watch` | Run Vitest in watch mode                        |
+| `bun install`        | Install dependencies                            |
+| `bun run dev`        | Start the dev server (http://localhost:8080)    |
+| `bun run build`      | Type-check and build a production bundle to `dist` |
+| `bun run preview`    | Preview the production build locally            |
+| `bun run typecheck`  | Type-check without emitting                     |
+| `bun run test`       | Run the Vitest test suite once                  |
+| `bun run test:watch` | Run Vitest in watch mode                        |
 
 ## Project structure
 
