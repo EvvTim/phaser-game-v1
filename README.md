@@ -29,8 +29,15 @@ src/game/main.ts         Builds the validated game config and starts Phaser.Game
 src/game/config/        Game config + its Zod schema (validated at startup)
 src/game/events/        Shared EventBus and the EVENTS name registry
 src/game/factories/     Object-pool factories (Phaser.GameObjects.Group wrappers)
+src/game/input/         Input helpers built on Phaser's native input plugins (gamepad, etc.)
 src/game/scenes/        Boot -> Preloader -> MainMenu -> Game -> GameOver
 ```
+
+Gamepad support uses Phaser's built-in `Input.Gamepad` plugin (enabled via
+`input.gamepad: true` in `game/main.ts`) rather than raw `navigator.getGamepads()`.
+`src/game/input/gamepadLogger.ts` is currently just a console-log diagnostic,
+wired into the interactive scenes, to confirm detection works — replace it
+with real input handling once gamepad controls are designed.
 
 As gameplay is added, prefer these additional folders, kept next to the
 code they support:

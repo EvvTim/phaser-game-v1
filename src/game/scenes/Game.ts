@@ -1,5 +1,6 @@
 import { Scene } from 'phaser';
 import { toDevicePixels } from '../config/pixelRatio';
+import { attachGamepadLogger } from '../input/gamepadLogger';
 
 export class Game extends Scene {
     constructor() {
@@ -8,6 +9,8 @@ export class Game extends Scene {
 
     create(): void {
         const { width, height } = this.scale;
+
+        attachGamepadLogger(this);
 
         // TODO: replace with real gameplay setup.
         this.add

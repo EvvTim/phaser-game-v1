@@ -20,6 +20,9 @@ const StartGame = (parent: string): Game => {
         type: AUTO,
         parent: validatedParent,
         backgroundColor,
+        input: {
+            gamepad: true,
+        },
         scale: {
             mode: Scale.NONE,
             width: toDevicePixels(width),
