@@ -2,13 +2,21 @@ import { Boot } from './scenes/Boot';
 import { GameOver } from './scenes/GameOver';
 import { Game as MainGame } from './scenes/Game';
 import { MainMenu } from './scenes/MainMenu';
+import { Settings } from './scenes/Settings';
 import { AUTO, Core, Game, Scale } from 'phaser';
 import { Preloader } from './scenes/Preloader';
 import { createValidatedGameConfig } from './config/gameConfig';
-import { getPixelRatio, toDevicePixels } from './config/pixelRatio';
+import { getPixelRatio, setRenderQuality, toDevicePixels } from './config/pixelRatio';
+import { SettingsStore } from './settings/SettingsStore';
+import { applyDisplaySettings } from './settings/applyDisplaySettings';
+import { EventBus } from './events/EventBus';
+import { EVENTS } from './events/GameEvents';
+import type { Settings as GameSettings } from './settings/settingsSchema';
 
 const StartGame = (parent: string): Game => {
     const { parent: validatedParent, width, height, backgroundColor } = createValidatedGameConfig(parent);
+
+    setRenderQuality(SettingsStore.get().display.renderQuality);
     const pixelRatio = getPixelRatio();
 
     // Scale.RESIZE would fight us here: on every window resize it resets the
@@ -30,7 +38,7 @@ const StartGame = (parent: string): Game => {
             zoom: 1 / pixelRatio,
             autoCenter: Scale.CENTER_BOTH,
         },
-        scene: [Boot, Preloader, MainMenu, MainGame, GameOver],
+        scene: [Boot, Preloader, MainMenu, MainGame, GameOver, Settings],
     };
 
     const game = new Game(config);
@@ -39,9 +47,16 @@ const StartGame = (parent: string): Game => {
         game.scale.resize(toDevicePixels(window.innerWidth), toDevicePixels(window.innerHeight));
     };
 
+    const onSettingsChanged = (settings: GameSettings): void => {
+        applyDisplaySettings(game, settings.display.renderQuality);
+    };
+
     window.addEventListener('resize', onWindowResize);
+    EventBus.on(EVENTS.SETTINGS_CHANGED, onSettingsChanged);
+
     game.events.once(Core.Events.DESTROY, () => {
         window.removeEventListener('resize', onWindowResize);
+        EventBus.off(EVENTS.SETTINGS_CHANGED, onSettingsChanged);
     });
 
     return game;

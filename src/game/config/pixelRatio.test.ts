@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { capDevicePixelRatio } from './pixelRatio';
+import { capDevicePixelRatio, getQualityScale } from './pixelRatio';
 
 describe('capDevicePixelRatio', () => {
     it('passes through ratios at or below the cap', () => {
@@ -18,5 +18,17 @@ describe('capDevicePixelRatio', () => {
 
     it('respects a custom max', () => {
         expect(capDevicePixelRatio(3, 4)).toBe(3);
+    });
+});
+
+describe('getQualityScale', () => {
+    it('renders auto and high at full resolution', () => {
+        expect(getQualityScale('auto')).toBe(1);
+        expect(getQualityScale('high')).toBe(1);
+    });
+
+    it('scales medium and low down', () => {
+        expect(getQualityScale('medium')).toBe(0.75);
+        expect(getQualityScale('low')).toBe(0.5);
     });
 });

@@ -1,4 +1,19 @@
+export const RENDER_QUALITIES = ['auto', 'high', 'medium', 'low'] as const;
+export type RenderQuality = (typeof RENDER_QUALITIES)[number];
+
 const MAX_PIXEL_RATIO = 2;
+
+/**
+ * How much of the (capped) devicePixelRatio to actually render at. This is
+ * what the Display settings tab's "render quality" option controls — lower
+ * quality trades sharpness for fill-rate on weaker GPUs.
+ */
+const QUALITY_SCALE: Record<RenderQuality, number> = {
+    auto: 1,
+    high: 1,
+    medium: 0.75,
+    low: 0.5,
+};
 
 /**
  * Caps a raw `devicePixelRatio` value. Rendering at the full, uncapped ratio
@@ -9,9 +24,24 @@ export function capDevicePixelRatio(rawRatio: number, max: number = MAX_PIXEL_RA
     return Math.min(rawRatio || 1, max);
 }
 
-/** The (capped) ratio between device pixels and CSS pixels for the current display. */
+export function getQualityScale(quality: RenderQuality): number {
+    return QUALITY_SCALE[quality];
+}
+
+let currentQuality: RenderQuality = 'auto';
+
+/** Sets the active render quality (see game/settings). Takes effect on the next resize/zoom apply. */
+export function setRenderQuality(quality: RenderQuality): void {
+    currentQuality = quality;
+}
+
+export function getRenderQuality(): RenderQuality {
+    return currentQuality;
+}
+
+/** The ratio between device pixels and CSS pixels the game currently renders at. */
 export function getPixelRatio(): number {
-    return capDevicePixelRatio(window.devicePixelRatio);
+    return capDevicePixelRatio(window.devicePixelRatio) * getQualityScale(currentQuality);
 }
 
 /**

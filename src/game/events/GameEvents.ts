@@ -5,6 +5,7 @@
  */
 export const EVENTS = Object.freeze({
     GAME_READY: 'game-ready',
+    SETTINGS_CHANGED: 'settings-changed',
 } as const);
 
 export type GameEventName = (typeof EVENTS)[keyof typeof EVENTS];
