@@ -75,7 +75,7 @@ export class Settings extends Scene {
             PANEL_SLICE.bottom,
         );
 
-        const tabBarY = panelTop + toDevicePixels(45);
+        const tabBarY = panelTop + toDevicePixels(55);
         this.tabBar = new TabBar(this, width / 2, tabBarY, {
             tabs: TABS.map(({ key, label }) => ({ key, label })),
             activeKey: this.activeTab,
