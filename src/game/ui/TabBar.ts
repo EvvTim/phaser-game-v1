@@ -39,7 +39,7 @@ export class TabBar extends GameObjects.Container {
             activeKey: options.activeKey,
         });
 
-        const buttonHeight = toDevicePixels(44);
+        const buttonHeight = toDevicePixels(64);
         const gap = toDevicePixels(10);
         const padding = { x: toDevicePixels(TAB_PADDING_X) };
 

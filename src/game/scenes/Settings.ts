@@ -217,7 +217,7 @@ export class Settings extends Scene {
         this.content.add(new SectionHeading(this, 0, toDevicePixels(top), { label: headingText }));
 
         const buttonWidth = toDevicePixels(130);
-        const buttonHeight = toDevicePixels(44);
+        const buttonHeight = toDevicePixels(64);
         const gap = toDevicePixels(12);
         const totalWidth = options.length * buttonWidth + (options.length - 1) * gap;
         const y = toDevicePixels(top + 50);
