@@ -1,5 +1,6 @@
 import { Scene } from 'phaser';
 import { toDevicePixels } from '../config/pixelRatio';
+import { t } from '../i18n/i18n';
 import { attachGamepadLogger } from '../input/gamepadLogger';
 
 export class GameOver extends Scene {
@@ -13,7 +14,7 @@ export class GameOver extends Scene {
         attachGamepadLogger(this);
 
         this.add
-            .text(width / 2, height / 2, 'Game Over', {
+            .text(width / 2, height / 2, t('gameOver.title'), {
                 fontFamily: 'Arial',
                 fontSize: toDevicePixels(64),
                 color: '#ffffff',

@@ -24,8 +24,8 @@ To regenerate (e.g. after re-exporting the source art):
 
 ```sh
 cd art-source/ui
-npm install sharp --no-save
-node detect.mjs && node crop.mjs && node pack.mjs
+bun add sharp --no-save
+bun detect.mjs && bun crop.mjs && bun pack.mjs
 ```
 
 If the element count or layout changes, re-check `NAMES` in `pack.mjs`

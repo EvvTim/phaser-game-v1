@@ -1,7 +1,9 @@
 import { GameObjects, Scene, Scenes } from 'phaser';
-import { RENDER_QUALITIES, toDevicePixels, type RenderQuality } from '../config/pixelRatio';
+import { RENDER_QUALITIES, toDevicePixels } from '../config/pixelRatio';
 import { EVENTS } from '../events/GameEvents';
 import { EventBus } from '../events/EventBus';
+import { t } from '../i18n/i18n';
+import { LANGUAGES, LANGUAGE_NATIVE_NAMES } from '../i18n/languages';
 import { GamepadNavigator } from '../input/GamepadNavigator';
 import { SettingsStore } from '../settings/SettingsStore';
 import { Button } from '../ui/Button';
@@ -11,21 +13,14 @@ import { Title } from '../ui/Title';
 import { UI_ATLAS_KEY, UI_FRAMES } from '../ui/uiAtlas';
 import { PANEL_SLICE } from '../ui/panelSlice';
 
-const TABS = [
-    { key: 'display', label: 'Экран' },
-    { key: 'controls', label: 'Управление' },
-    { key: 'language', label: 'Язык' },
-    { key: 'audio', label: 'Аудио' },
-] as const;
+const TABS = ['display', 'controls', 'language', 'audio'] as const;
 
-type TabKey = (typeof TABS)[number]['key'];
+type TabKey = (typeof TABS)[number];
 
-const RENDER_QUALITY_LABELS: Record<RenderQuality, string> = {
-    auto: 'Авто',
-    high: 'Высокое',
-    medium: 'Среднее',
-    low: 'Низкое',
-};
+interface OptionRowItem<T extends string> {
+    value: T;
+    label: string;
+}
 
 interface SettingsSceneData {
     activeTab?: TabKey;
@@ -50,7 +45,7 @@ export class Settings extends Scene {
         const { width, height } = this.scale;
 
         const titleY = toDevicePixels(55);
-        const title = new Title(this, width / 2, titleY, { label: 'Настройки' });
+        const title = new Title(this, width / 2, titleY, { label: t('settings.title') });
         this.add.existing(title);
 
         // Derived from the title's actual (auto-computed) height + a gap,
@@ -77,7 +72,7 @@ export class Settings extends Scene {
 
         const tabBarY = panelTop + toDevicePixels(55);
         this.tabBar = new TabBar(this, width / 2, tabBarY, {
-            tabs: TABS.map(({ key, label }) => ({ key, label })),
+            tabs: TABS.map((key) => ({ key, label: t(`settings.tabs.${key}`) })),
             activeKey: this.activeTab,
             onSelect: (key) => this.selectTab(key as TabKey),
         });
@@ -96,7 +91,7 @@ export class Settings extends Scene {
         this.content = this.add.container(width / 2, panelTop + toDevicePixels(135));
 
         this.backButton = new Button(this, toDevicePixels(100), height - toDevicePixels(60), {
-            label: '< Назад',
+            label: t('common.back'),
             width: toDevicePixels(150),
             height: toDevicePixels(44),
             onClick: () => this.scene.start('MainMenu'),
@@ -119,10 +114,10 @@ export class Settings extends Scene {
         });
         this.renderActiveTab();
 
-        // A render-quality change re-renders this scene from scratch (see
-        // renderDisplayTab) so its own text/UI is redrawn at the new pixel
-        // ratio; other settings sections won't need this until they too
-        // affect layout at the device-pixel level.
+        // A render-quality or language change re-renders this scene from
+        // scratch so its own text/UI is redrawn at the new pixel ratio /
+        // in the new language (main.ts applies the change first — its
+        // SETTINGS_CHANGED listener is registered before any scene's).
         const onSettingsChanged = (): void => {
             this.scene.restart({ activeTab: this.activeTab });
         };
@@ -144,15 +139,15 @@ export class Settings extends Scene {
 
     /** L/R shoulder buttons jump directly between tabs (wrapping), independent of D-pad focus. */
     private cycleTab(delta: number): void {
-        const currentIndex = TABS.findIndex((tab) => tab.key === this.activeTab);
+        const currentIndex = TABS.indexOf(this.activeTab);
         const nextIndex = (currentIndex + delta + TABS.length) % TABS.length;
-        this.selectTab(TABS[nextIndex].key);
+        this.selectTab(TABS[nextIndex]);
     }
 
     private renderActiveTab(): void {
         this.content.removeAll(true);
 
-        const contentButtons = this.activeTab === 'display' ? this.renderDisplayTab() : this.renderStubTab();
+        const contentButtons = this.renderTabContent();
 
         // Keep gamepad focus on the active tab: this runs on every tab
         // switch (L/R or click), and defaulting to the first item would
@@ -163,9 +158,44 @@ export class Settings extends Scene {
         );
     }
 
+    private renderTabContent(): Button[] {
+        switch (this.activeTab) {
+            case 'display':
+                return this.renderDisplayTab();
+            case 'language':
+                return this.renderLanguageTab();
+            default:
+                return this.renderStubTab();
+        }
+    }
+
     private renderDisplayTab(): Button[] {
+        return this.renderOptionRow(
+            t('settings.display.renderQuality'),
+            RENDER_QUALITIES.map((quality) => ({ value: quality, label: t(`settings.display.quality.${quality}`) })),
+            SettingsStore.get().display.renderQuality,
+            (renderQuality) => SettingsStore.setDisplay({ renderQuality }),
+        );
+    }
+
+    private renderLanguageTab(): Button[] {
+        return this.renderOptionRow(
+            t('settings.language.heading'),
+            LANGUAGES.map((locale) => ({ value: locale, label: LANGUAGE_NATIVE_NAMES[locale] })),
+            SettingsStore.get().language.locale,
+            (locale) => SettingsStore.setLanguage({ locale }),
+        );
+    }
+
+    /** A heading over a centered row of buttons, one per option, with the current value shown as selected. */
+    private renderOptionRow<T extends string>(
+        headingText: string,
+        options: readonly OptionRowItem<T>[],
+        current: T,
+        onPick: (value: T) => void,
+    ): Button[] {
         const heading = this.add
-            .text(0, 0, 'Качество рендера', {
+            .text(0, 0, headingText, {
                 fontFamily: 'Arial',
                 fontSize: toDevicePixels(20),
                 color: '#ffffff',
@@ -176,20 +206,19 @@ export class Settings extends Scene {
         const buttonWidth = toDevicePixels(130);
         const buttonHeight = toDevicePixels(44);
         const gap = toDevicePixels(12);
-        const totalWidth = RENDER_QUALITIES.length * buttonWidth + (RENDER_QUALITIES.length - 1) * gap;
+        const totalWidth = options.length * buttonWidth + (options.length - 1) * gap;
         const y = toDevicePixels(60);
 
         let cursorX = -totalWidth / 2 + buttonWidth / 2;
-        const current = SettingsStore.get().display.renderQuality;
         const buttons: Button[] = [];
 
-        for (const quality of RENDER_QUALITIES) {
+        for (const option of options) {
             const button = new Button(this, cursorX, y, {
-                label: RENDER_QUALITY_LABELS[quality],
+                label: option.label,
                 width: buttonWidth,
                 height: buttonHeight,
-                selected: quality === current,
-                onClick: () => SettingsStore.setDisplay({ renderQuality: quality }),
+                selected: option.value === current,
+                onClick: () => onPick(option.value),
             });
             this.content.add(button);
             buttons.push(button);
@@ -201,7 +230,7 @@ export class Settings extends Scene {
 
     private renderStubTab(): Button[] {
         const text = this.add
-            .text(0, toDevicePixels(40), 'Скоро...', {
+            .text(0, toDevicePixels(40), t('settings.comingSoon'), {
                 fontFamily: 'Arial',
                 fontSize: toDevicePixels(20),
                 color: '#8899aa',

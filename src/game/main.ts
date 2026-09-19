@@ -11,6 +11,7 @@ import { syncCanvasSize } from './config/canvasSize';
 import { SettingsStore } from './settings/SettingsStore';
 import { applyDisplaySettings } from './settings/applyDisplaySettings';
 import { EventBus } from './events/EventBus';
+import { setLanguage } from './i18n/i18n';
 import { EVENTS } from './events/GameEvents';
 import type { Settings as GameSettings } from './settings/settingsSchema';
 
@@ -18,6 +19,7 @@ const StartGame = (parent: string): Game => {
     const { parent: validatedParent, width, height, backgroundColor } = createValidatedGameConfig(parent);
 
     setRenderQuality(SettingsStore.get().display.renderQuality);
+    setLanguage(SettingsStore.get().language.locale);
     const pixelRatio = getPixelRatio();
 
     // Scale.RESIZE would fight us here: on every window resize it resets the
@@ -49,6 +51,7 @@ const StartGame = (parent: string): Game => {
     };
 
     const onSettingsChanged = (settings: GameSettings): void => {
+        setLanguage(settings.language.locale);
         applyDisplaySettings(game, settings.display.renderQuality);
     };
 

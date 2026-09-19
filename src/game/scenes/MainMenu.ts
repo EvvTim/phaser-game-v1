@@ -1,6 +1,7 @@
 import { Scene } from 'phaser';
 import { toDevicePixels } from '../config/pixelRatio';
 import { attachGamepadLogger } from '../input/gamepadLogger';
+import { t } from '../i18n/i18n';
 import { GamepadNavigator } from '../input/GamepadNavigator';
 import { Button } from '../ui/Button';
 import { Title } from '../ui/Title';
@@ -18,7 +19,7 @@ export class MainMenu extends Scene {
         attachGamepadLogger(this);
 
         const titleY = toDevicePixels(60);
-        const title = new Title(this, width / 2, titleY, { label: 'Main Menu' });
+        const title = new Title(this, width / 2, titleY, { label: t('mainMenu.title') });
         this.add.existing(title);
 
         // Derived from the title's actual (auto-computed) height + a gap,
@@ -45,7 +46,7 @@ export class MainMenu extends Scene {
         const buttonHeight = toDevicePixels(52);
 
         const playButton = new Button(this, width / 2, panelY - toDevicePixels(35), {
-            label: 'Играть',
+            label: t('mainMenu.play'),
             width: buttonWidth,
             height: buttonHeight,
             onClick: () => this.scene.start('Game'),
@@ -53,7 +54,7 @@ export class MainMenu extends Scene {
         this.add.existing(playButton);
 
         const settingsButton = new Button(this, width / 2, panelY + toDevicePixels(35), {
-            label: 'Настройки',
+            label: t('mainMenu.settings'),
             width: buttonWidth,
             height: buttonHeight,
             onClick: () => this.scene.start('Settings'),

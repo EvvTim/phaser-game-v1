@@ -1,6 +1,6 @@
 import { EventBus } from '../events/EventBus';
 import { EVENTS } from '../events/GameEvents';
-import { settingsSchema, type DisplaySettings, type Settings } from './settingsSchema';
+import { settingsSchema, type DisplaySettings, type LanguageSettings, type Settings } from './settingsSchema';
 
 const STORAGE_KEY = 'phaser-game-v1:settings';
 
@@ -38,10 +38,15 @@ class SettingsStoreImpl {
     }
 
     setDisplay(patch: Partial<DisplaySettings>): void {
-        this.settings = settingsSchema.parse({
-            ...this.settings,
-            display: { ...this.settings.display, ...patch },
-        });
+        this.commit({ ...this.settings, display: { ...this.settings.display, ...patch } });
+    }
+
+    setLanguage(patch: Partial<LanguageSettings>): void {
+        this.commit({ ...this.settings, language: { ...this.settings.language, ...patch } });
+    }
+
+    private commit(next: Settings): void {
+        this.settings = settingsSchema.parse(next);
 
         persistSettings(this.settings);
         EventBus.emit(EVENTS.SETTINGS_CHANGED, this.settings);

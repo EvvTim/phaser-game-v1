@@ -12,6 +12,18 @@ describe('settingsSchema', () => {
         expect(result.display.renderQuality).toBe('medium');
     });
 
+    it('defaults the language to Russian', () => {
+        expect(settingsSchema.parse({}).language.locale).toBe('ru');
+    });
+
+    it.each(['ru', 'uk', 'en', 'pl'])('accepts the %s language', (locale) => {
+        expect(settingsSchema.parse({ language: { locale } }).language.locale).toBe(locale);
+    });
+
+    it('rejects an unsupported language', () => {
+        expect(settingsSchema.safeParse({ language: { locale: 'de' } }).success).toBe(false);
+    });
+
     it('rejects an unknown render quality', () => {
         const result = settingsSchema.safeParse({ display: { renderQuality: 'ultra' } });
         expect(result.success).toBe(false);
