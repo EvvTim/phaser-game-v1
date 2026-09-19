@@ -9,6 +9,7 @@ import { GamepadNavigator } from '../input/GamepadNavigator';
 import { SettingsStore } from '../settings/SettingsStore';
 import { Button } from '../ui/Button';
 import { GamepadHint } from '../ui/GamepadHint';
+import { SectionHeading } from '../ui/SectionHeading';
 import { TabBar } from '../ui/TabBar';
 import { Title } from '../ui/Title';
 import { UI_ATLAS_KEY, UI_FRAMES } from '../ui/uiAtlas';
@@ -213,20 +214,13 @@ export class Settings extends Scene {
         current: T,
         onPick: (value: T) => void,
     ): Button[] {
-        const heading = this.add
-            .text(0, toDevicePixels(top), headingText, {
-                fontFamily: 'Arial',
-                fontSize: toDevicePixels(20),
-                color: '#ffffff',
-            })
-            .setOrigin(0.5);
-        this.content.add(heading);
+        this.content.add(new SectionHeading(this, 0, toDevicePixels(top), { label: headingText }));
 
         const buttonWidth = toDevicePixels(130);
         const buttonHeight = toDevicePixels(44);
         const gap = toDevicePixels(12);
         const totalWidth = options.length * buttonWidth + (options.length - 1) * gap;
-        const y = toDevicePixels(top + 45);
+        const y = toDevicePixels(top + 50);
 
         let cursorX = -totalWidth / 2 + buttonWidth / 2;
         const buttons: Button[] = [];
