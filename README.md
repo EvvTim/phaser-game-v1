@@ -5,7 +5,9 @@ architectural rules this project follows.
 
 ## Requirements
 
-[Bun](https://bun.sh) (used as the package manager and script runner).
+[Bun](https://bun.sh) — the only supported package manager and script
+runner. Don't use `npm`/`npx`/`yarn`/`pnpm` (they'd create a competing
+lockfile); `bun.lock` is the single source of truth.
 
 ## Commands
 
@@ -29,9 +31,10 @@ src/game/main.ts         Builds the validated game config and starts Phaser.Game
 src/game/config/        Game config + its Zod schema (validated at startup)
 src/game/events/        Shared EventBus and the EVENTS name registry
 src/game/factories/     Object-pool factories (Phaser.GameObjects.Group wrappers)
+src/game/i18n/          i18next setup, supported languages, RU/UA/EN/PL translations
 src/game/input/         Input helpers built on Phaser's native input plugins (gamepad, etc.)
 src/game/settings/      Persisted settings: Zod schema, localStorage-backed SettingsStore
-src/game/ui/            Reusable UI primitives (Button, TabBar) for menu/settings screens
+src/game/ui/            Reusable UI primitives (Button, TabBar, Title, SectionHeading) for menu/settings screens
 src/game/scenes/        Boot -> Preloader -> MainMenu -> Game -> GameOver, MainMenu -> Settings -> MainMenu
 ```
 
@@ -49,13 +52,19 @@ Gamepad support uses Phaser's built-in `Input.Gamepad` plugin (enabled via
   controllers turn up. Confirm/back follow *that controller's own*
   convention (e.g. Nintendo's right-face-button-confirms, not Xbox's
   bottom-button-confirms), not a hardcoded global choice.
-- `src/game/input/GamepadNavigator.ts` — one per scene; give it an ordered
-  `Button[]` via `setItems()` (rebuild it whenever that set changes, e.g.
-  Settings on tab switch) and it drives D-pad focus movement + confirm/back,
-  showing focus via `Button.setFocused()` (a scale-up, independent of the
-  `selected` tint so both can show at once). Shoulder buttons (`onShoulderLeft`/
-  `onShoulderRight`) fire independently of focus, e.g. Settings uses them to
-  jump directly between tabs. `onGamepadStatusChange` reports the first
+- `src/game/input/GamepadNavigator.ts` — one per scene; give it the
+  navigable `Button[]` via `setItems()` (rebuild it whenever that set
+  changes, e.g. Settings on tab switch; the first item gets focus). The D-pad
+  moves focus to the nearest button in that direction on screen
+  (`input/spatialNavigation.ts` — no wrap-around; sideways moves stay in
+  their row, up/down can always reach the next row), confirm activates,
+  back fires `onBack`. Focus is shown via `Button.setFocused()` (a cyan Glow
+  filter, independent of the `selected` tint so both can show at once).
+  Shoulder buttons (`onShoulderLeft`/`onShoulderRight`) fire independently of
+  focus — Settings uses them to switch tabs, and deliberately does NOT
+  register the tab buttons with the navigator, so tabs change only via L/R
+  (or a click), and focus then lands on the section's first interactive
+  element. `onGamepadStatusChange` reports the first
   connected pad's mapping (or `null`) — Settings uses it to show/hide the
   `ui/GamepadHint.ts` "L"/"R" labels next to the tab bar only while a
   gamepad is actually connected, using that mapping's own button names
@@ -99,23 +108,52 @@ fontSize: toDevicePixels(38) // not fontSize: 38
 Positions derived from `this.scale.width` / `this.scale.height` need no
 conversion — they're already in that same device-pixel space.
 
+## Localization
+
+UI text uses [i18next](https://www.i18next.com) with four languages: Russian
+(`ru`), Ukrainian (`uk`, shown as "UA"), English (`en`), Polish (`pl`).
+
+- Never hardcode visible text — use `t('mainMenu.play')` from
+  `src/game/i18n/i18n.ts`. Keys are type-checked against `locales/en.ts`.
+- To add a string: add the key to `locales/en.ts` first, then `ru.ts`,
+  `uk.ts`, `pl.ts` (each is typed as `Translation`, so a missing key fails
+  `bun run typecheck`).
+- The default language is the system/browser language when supported
+  (`detectSystemLanguage()`), otherwise English; picking one in Settings ->
+  Language is saved and wins from then on. Language names on the picker
+  buttons are shown in their own language and aren't translated.
+- Text is read at scene creation, so a language change restarts the Settings
+  scene (see `SETTINGS_CHANGED`); `game/main.ts` applies the language before
+  any scene reacts.
+
 ## Settings screen
 
-Reachable from MainMenu -> Настройки. Tabs: Экран (Display), Управление
-(Controls), Язык (Language), Аудио (Audio) — only Display is implemented so
-far; the rest render a "Скоро..." stub until built out.
+Reachable from MainMenu -> Settings. Tabs: Display, Controls, Language,
+Audio — Display and Language are implemented; Controls and Audio render a
+"Coming soon" stub until built out.
 
 - `src/game/settings/settingsSchema.ts` — Zod schema for the persisted shape.
   Extend this (with a default for every new field, so old saved data still
   parses) as each tab gets real settings.
-- `src/game/settings/SettingsStore.ts` — loads/validates/persists to
-  `localStorage`, and emits `EVENTS.SETTINGS_CHANGED` on the shared
-  `EventBus` on every change, rather than any screen reaching into another.
-- The Display tab's "render quality" (Авто/Высокое/Среднее/Низкое) scales
+- `src/game/settings/settingsStorage.ts` — the pure load/save functions
+  (validated through the schema; corrupt or unavailable storage falls back to
+  defaults) — kept free of Phaser so they're unit-tested.
+- `src/game/settings/SettingsStore.ts` — holds the current settings, persists
+  every change to `localStorage` (they survive a reload), and emits
+  `EVENTS.SETTINGS_CHANGED` on the shared `EventBus` on every change, rather
+  than any screen reaching into another. Saved settings are per browser
+  origin — a different dev-server port is a different origin.
+- The Display tab has two rows. "Render quality" (Auto/High/Medium/Low) scales
   `getPixelRatio()` in `game/config/pixelRatio.ts` — see `QUALITY_SCALE` —
   trading HiDPI sharpness for fill-rate. Changing it live re-applies the
   canvas resize/zoom (`settings/applyDisplaySettings.ts`) and restarts the
   Settings scene so its own UI re-renders at the new ratio.
+- "Glow quality" (High/Medium/Low, default Low) sets how expensive the Glow
+  filters on buttons are (`game/config/glowQuality.ts`): Phaser's Glow shader
+  samples `distance × quality` times per pixel and those are fixed when the
+  filter is created, so a change applies to buttons created afterwards (the
+  Settings scene restarts, so it takes effect immediately there).
+- The Language tab lists the four languages; see Localization above.
 - `src/game/ui/Button.ts` and `TabBar.ts` are plain `GameObjects.Container`
   components that don't self-register — call `scene.add.existing(...)` (or
   `container.add(...)` to nest one) after constructing them.
@@ -125,6 +163,12 @@ far; the rest render a "Скоро..." stub until built out.
   padding shifts the label off-center within a fixed size, same as CSS.
   `TabBar` uses this to size each tab to its own label instead of a single
   fixed width that would overflow for longer ones.
+- `Button` supports two independent glows: `setFocused()` (cyan, gamepad
+  focus) and the `selectedGlow` option (yellow, while `selected` — `TabBar`
+  turns it on so the active tab stands out).
+- `src/game/ui/SectionHeading.ts` is the title over a group of options
+  (e.g. "Render quality"): white text on a semi-transparent dark rounded
+  background, auto-sized to its label. Decorative only.
 - `src/game/ui/Title.ts` is a screen header: a `banner_hex` background with
   a centered label, same CSS-box sizing/padding as `Button` (they share the
   sizing math via `ui/boxLayout.ts`) but not interactive. It's meant to sit
