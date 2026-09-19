@@ -1,9 +1,11 @@
 import { z } from 'zod';
+import { GLOW_QUALITIES } from '../config/glowQuality';
 import { RENDER_QUALITIES } from '../config/pixelRatio';
 import { DEFAULT_LANGUAGE, LANGUAGES } from '../i18n/languages';
 
 export const displaySettingsSchema = z.object({
     renderQuality: z.enum(RENDER_QUALITIES).default('auto'),
+    glowQuality: z.enum(GLOW_QUALITIES).default('high'),
 });
 export type DisplaySettings = z.infer<typeof displaySettingsSchema>;
 

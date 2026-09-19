@@ -18,6 +18,7 @@ export const ru: Translation = {
             audio: 'Аудио',
         },
         display: {
+            glowQuality: 'Качество свечения',
             renderQuality: 'Качество рендера',
             quality: {
                 auto: 'Авто',

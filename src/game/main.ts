@@ -6,6 +6,7 @@ import { Settings } from './scenes/Settings';
 import { AUTO, Core, Game, Scale } from 'phaser';
 import { Preloader } from './scenes/Preloader';
 import { createValidatedGameConfig } from './config/gameConfig';
+import { setGlowQuality } from './config/glowQuality';
 import { getPixelRatio, setRenderQuality, toDevicePixels } from './config/pixelRatio';
 import { syncCanvasSize } from './config/canvasSize';
 import { SettingsStore } from './settings/SettingsStore';
@@ -19,6 +20,7 @@ const StartGame = (parent: string): Game => {
     const { parent: validatedParent, width, height, backgroundColor } = createValidatedGameConfig(parent);
 
     setRenderQuality(SettingsStore.get().display.renderQuality);
+    setGlowQuality(SettingsStore.get().display.glowQuality);
     setLanguage(SettingsStore.get().language.locale);
     const pixelRatio = getPixelRatio();
 
@@ -52,7 +54,7 @@ const StartGame = (parent: string): Game => {
 
     const onSettingsChanged = (settings: GameSettings): void => {
         setLanguage(settings.language.locale);
-        applyDisplaySettings(game, settings.display.renderQuality);
+        applyDisplaySettings(game, settings.display);
     };
 
     window.addEventListener('resize', onWindowResize);

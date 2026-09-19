@@ -18,6 +18,7 @@ export const pl: Translation = {
             audio: 'Dźwięk',
         },
         display: {
+            glowQuality: 'Jakość poświaty',
             renderQuality: 'Jakość renderowania',
             quality: {
                 auto: 'Auto',

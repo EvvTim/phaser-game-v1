@@ -2,6 +2,7 @@ import type { Scene } from 'phaser';
 import { Scenes } from 'phaser';
 import type { Input } from 'phaser';
 import type { Button } from '../ui/Button';
+import { findNextInDirection } from './spatialNavigation';
 import { detectGamepadMapping, readHatDirection, type Direction, type GamepadMapping } from './gamepadMapping';
 
 type Gamepad = Input.Gamepad.Gamepad;
@@ -22,15 +23,16 @@ export interface GamepadNavigatorOptions {
 
 /**
  * Drives gamepad-only UI navigation: the D-pad (button- or hat-axis-based,
- * see gamepadMapping.ts) moves focus through a registered, ordered list of
- * Buttons, the mapped confirm button activates the focused one, the mapped
- * back button (if a callback is set) fires it, and the shoulder buttons
- * (if callbacks are set) fire independently of focus — e.g. L/R jumping
- * between tabs directly.
+ * see gamepadMapping.ts) moves focus to the nearest registered Button in
+ * that direction on screen (see spatialNavigation.ts), the mapped confirm
+ * button activates the focused one, the mapped back button (if a callback
+ * is set) fires it, and the shoulder buttons (if callbacks are set) fire
+ * independently of focus — e.g. L/R jumping between tabs directly.
  *
  * One instance per scene — construct it in `create()` and call `setItems()`
  * whenever the scene's navigable buttons change (e.g. Settings rebuilding
- * its tab content). Cleans up its own listeners on scene shutdown.
+ * its tab content); the first item gets initial focus. Cleans up its own
+ * listeners on scene shutdown.
  */
 export class GamepadNavigator {
     private items: Button[] = [];
@@ -114,23 +116,10 @@ export class GamepadNavigator {
         });
     }
 
-    /**
-     * Replaces the navigable items, in navigation order, and focuses
-     * `initialFocus` if it's among them, otherwise the first one. Callers
-     * that rebuild the list on a state change (e.g. a tab switch) should
-     * pass the item that logically stays "current", or focus would jump
-     * back to the start every time.
-     */
-    setItems(items: Button[], initialFocus?: Button): void {
+    /** Replaces the navigable items, in navigation order, and focuses the first one. */
+    setItems(items: Button[]): void {
         this.items = items;
-
-        const requestedIndex = initialFocus ? items.indexOf(initialFocus) : -1;
-        if (requestedIndex >= 0) {
-            this.focusIndex = requestedIndex;
-        } else {
-            this.focusIndex = items.length > 0 ? 0 : -1;
-        }
-
+        this.focusIndex = items.length > 0 ? 0 : -1;
         this.applyFocusVisuals();
     }
 
@@ -187,8 +176,17 @@ export class GamepadNavigator {
             return;
         }
 
-        const delta = direction === 'up' || direction === 'left' ? -1 : 1;
-        this.focusIndex = (this.focusIndex + delta + this.items.length) % this.items.length;
+        const positions = this.items.map((item) => {
+            const { tx, ty } = item.getWorldTransformMatrix();
+            return { x: tx, y: ty };
+        });
+
+        const next = findNextInDirection(positions, this.focusIndex, direction);
+        if (next === null) {
+            return;
+        }
+
+        this.focusIndex = next;
         this.applyFocusVisuals();
     }
 

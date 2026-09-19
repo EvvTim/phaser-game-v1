@@ -24,6 +24,7 @@ export const en = {
             audio: 'Audio',
         },
         display: {
+            glowQuality: 'Glow quality',
             renderQuality: 'Render quality',
             quality: {
                 auto: 'Auto',

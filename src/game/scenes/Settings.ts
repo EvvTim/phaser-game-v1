@@ -1,4 +1,5 @@
 import { GameObjects, Scene, Scenes } from 'phaser';
+import { GLOW_QUALITIES } from '../config/glowQuality';
 import { RENDER_QUALITIES, toDevicePixels } from '../config/pixelRatio';
 import { EVENTS } from '../events/GameEvents';
 import { EventBus } from '../events/EventBus';
@@ -16,6 +17,9 @@ import { PANEL_SLICE } from '../ui/panelSlice';
 const TABS = ['display', 'controls', 'language', 'audio'] as const;
 
 type TabKey = (typeof TABS)[number];
+
+/** Vertical distance (CSS px) between stacked option rows in a settings tab. */
+const OPTION_ROW_SPACING = 100;
 
 interface OptionRowItem<T extends string> {
     value: T;
@@ -53,7 +57,7 @@ export class Settings extends Scene {
         // two drift out of sync and the panel overlaps the title, exactly
         // like it did when both were hand-picked separately.
         const gapBelowTitle = toDevicePixels(20);
-        const panelHeight = toDevicePixels(270);
+        const panelHeight = toDevicePixels(330);
         const panelY = titleY + title.height / 2 + gapBelowTitle + panelHeight / 2;
         const panelTop = panelY - panelHeight / 2;
 
@@ -88,7 +92,7 @@ export class Settings extends Scene {
         const rightTabHint = new GamepadHint(this, width / 2 + panelHalfWidth + hintGap, tabBarY);
         this.add.existing(rightTabHint);
 
-        this.content = this.add.container(width / 2, panelTop + toDevicePixels(135));
+        this.content = this.add.container(width / 2, panelTop + toDevicePixels(110));
 
         this.backButton = new Button(this, toDevicePixels(100), height - toDevicePixels(60), {
             label: t('common.back'),
@@ -149,13 +153,10 @@ export class Settings extends Scene {
 
         const contentButtons = this.renderTabContent();
 
-        // Keep gamepad focus on the active tab: this runs on every tab
-        // switch (L/R or click), and defaulting to the first item would
-        // leave the glow stuck on the first tab.
-        this.navigator.setItems(
-            [...this.tabBar.getButtons(), ...contentButtons, this.backButton],
-            this.tabBar.getButton(this.activeTab),
-        );
+        // The tab buttons are deliberately not registered: tabs change only
+        // via L/R (or a click), never by D-pad focus movement. Focus starts
+        // on the section's first interactive element (or Back, if it has none).
+        this.navigator.setItems([...contentButtons, this.backButton]);
     }
 
     private renderTabContent(): Button[] {
@@ -170,16 +171,29 @@ export class Settings extends Scene {
     }
 
     private renderDisplayTab(): Button[] {
-        return this.renderOptionRow(
-            t('settings.display.renderQuality'),
-            RENDER_QUALITIES.map((quality) => ({ value: quality, label: t(`settings.display.quality.${quality}`) })),
-            SettingsStore.get().display.renderQuality,
-            (renderQuality) => SettingsStore.setDisplay({ renderQuality }),
-        );
+        const { renderQuality, glowQuality } = SettingsStore.get().display;
+
+        return [
+            ...this.renderOptionRow(
+                0,
+                t('settings.display.renderQuality'),
+                RENDER_QUALITIES.map((value) => ({ value, label: t(`settings.display.quality.${value}`) })),
+                renderQuality,
+                (value) => SettingsStore.setDisplay({ renderQuality: value }),
+            ),
+            ...this.renderOptionRow(
+                OPTION_ROW_SPACING,
+                t('settings.display.glowQuality'),
+                GLOW_QUALITIES.map((value) => ({ value, label: t(`settings.display.quality.${value}`) })),
+                glowQuality,
+                (value) => SettingsStore.setDisplay({ glowQuality: value }),
+            ),
+        ];
     }
 
     private renderLanguageTab(): Button[] {
         return this.renderOptionRow(
+            0,
             t('settings.language.heading'),
             LANGUAGES.map((locale) => ({ value: locale, label: LANGUAGE_NATIVE_NAMES[locale] })),
             SettingsStore.get().language.locale,
@@ -187,15 +201,20 @@ export class Settings extends Scene {
         );
     }
 
-    /** A heading over a centered row of buttons, one per option, with the current value shown as selected. */
+    /**
+     * A heading over a centered row of buttons, one per option, with the
+     * current value shown as selected. `top` is the row's vertical offset
+     * (CSS px) within the content container, so several rows can stack.
+     */
     private renderOptionRow<T extends string>(
+        top: number,
         headingText: string,
         options: readonly OptionRowItem<T>[],
         current: T,
         onPick: (value: T) => void,
     ): Button[] {
         const heading = this.add
-            .text(0, 0, headingText, {
+            .text(0, toDevicePixels(top), headingText, {
                 fontFamily: 'Arial',
                 fontSize: toDevicePixels(20),
                 color: '#ffffff',
@@ -207,7 +226,7 @@ export class Settings extends Scene {
         const buttonHeight = toDevicePixels(44);
         const gap = toDevicePixels(12);
         const totalWidth = options.length * buttonWidth + (options.length - 1) * gap;
-        const y = toDevicePixels(60);
+        const y = toDevicePixels(top + 45);
 
         let cursorX = -totalWidth / 2 + buttonWidth / 2;
         const buttons: Button[] = [];
@@ -230,7 +249,7 @@ export class Settings extends Scene {
 
     private renderStubTab(): Button[] {
         const text = this.add
-            .text(0, toDevicePixels(40), t('settings.comingSoon'), {
+            .text(0, toDevicePixels(65), t('settings.comingSoon'), {
                 fontFamily: 'Arial',
                 fontSize: toDevicePixels(20),
                 color: '#8899aa',

@@ -18,6 +18,7 @@ export const uk: Translation = {
             audio: 'Аудіо',
         },
         display: {
+            glowQuality: 'Якість світіння',
             renderQuality: 'Якість рендеру',
             quality: {
                 auto: 'Авто',

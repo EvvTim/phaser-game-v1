@@ -50,6 +50,7 @@ export class TabBar extends GameObjects.Container {
                     height: buttonHeight,
                     padding,
                     selected: tab.key === activeKey,
+                    selectedGlow: true,
                     onClick: () => options.onSelect(tab.key),
                 }),
         );
@@ -70,14 +71,5 @@ export class TabBar extends GameObjects.Container {
 
     setActiveTab(key: string): void {
         this.buttons.forEach((button, buttonKey) => button.setSelected(buttonKey === key));
-    }
-
-    getButton(key: string): Button | undefined {
-        return this.buttons.get(key);
-    }
-
-    /** The tab buttons, in display order — e.g. for registering with a GamepadNavigator. */
-    getButtons(): Button[] {
-        return [...this.buttons.values()];
     }
 }

@@ -1,5 +1,6 @@
 import { GameObjects, Scene } from 'phaser';
 import type { Filters } from 'phaser';
+import { getGlowParams } from '../config/glowQuality';
 import { toDevicePixels } from '../config/pixelRatio';
 import { UI_ATLAS_KEY, UI_FRAMES } from './uiAtlas';
 import type { Padding, PaddingBox } from './padding';
@@ -24,6 +25,12 @@ export interface ButtonConfig {
      */
     padding?: ButtonPadding;
     selected?: boolean;
+    /**
+     * Also show a yellow glow while `selected` (on top of the selected tint) —
+     * used by tabs so the active one stands out, independent of the cyan
+     * gamepad-focus glow.
+     */
+    selectedGlow?: boolean;
 }
 
 /**
@@ -61,6 +68,10 @@ const SELECTED_TINT = 0xffe27a;
 const FOCUS_GLOW_COLOR = 0x66ccff;
 const FOCUS_GLOW_STRENGTH = 6;
 
+/** Yellow halo for a selected button that opted into `selectedGlow` (e.g. the active tab). Same lazy create/remove rule as the focus glow. */
+const SELECTED_GLOW_COLOR = 0xffd84a;
+const SELECTED_GLOW_STRENGTH = 6;
+
 /** CSS-equivalent label font size, exported so callers (e.g. TabBar) can measure label width before choosing a button's own width. */
 export const BUTTON_LABEL_FONT_SIZE = 18;
 
@@ -78,12 +89,15 @@ export class Button extends GameObjects.Container {
     private readonly label: GameObjects.Text;
     private readonly onClick: () => void;
     private focusGlow: Filters.Glow | null = null;
+    private selectedGlowFilter: Filters.Glow | null = null;
+    private readonly hasSelectedGlow: boolean;
     private selected: boolean;
 
     constructor(scene: Scene, x: number, y: number, config: ButtonConfig) {
         super(scene, x, y);
 
         this.selected = config.selected ?? false;
+        this.hasSelectedGlow = config.selectedGlow ?? false;
         this.onClick = config.onClick;
 
         const fallbackPadding: PaddingBox = {
@@ -148,25 +162,9 @@ export class Button extends GameObjects.Container {
     /** Gamepad-cursor highlight — distinct from `selected` (see FOCUS_GLOW_COLOR). */
     setFocused(focused: boolean): void {
         if (focused) {
-            if (!this.focusGlow) {
-                // enableFilters() is WebGL-only and no-ops (leaving `filters`
-                // null) without it — focus just won't glow there, no error.
-                // Safe to call repeatedly: it's a no-op once already enabled.
-                this.background.enableFilters();
-                this.focusGlow =
-                    this.background.filters?.external.addGlow(
-                        FOCUS_GLOW_COLOR,
-                        FOCUS_GLOW_STRENGTH,
-                        0,
-                        1,
-                        false,
-                        10,
-                        8,
-                    ) ?? null;
-            }
-        } else if (this.focusGlow) {
-            this.background.filters?.external.remove(this.focusGlow);
-            this.focusGlow = null;
+            this.focusGlow ??= this.addGlow(FOCUS_GLOW_COLOR, FOCUS_GLOW_STRENGTH);
+        } else {
+            this.focusGlow = this.removeGlow(this.focusGlow);
         }
     }
 
@@ -179,18 +177,39 @@ export class Button extends GameObjects.Container {
         // Belt-and-braces: explicitly drop the filter before Phaser's own
         // destroy cascade runs, rather than relying on it to clean up an
         // enabled Filters/Glow on a child GameObject.
-        if (this.focusGlow) {
-            this.background.filters?.external.remove(this.focusGlow);
-            this.focusGlow = null;
-        }
+        this.focusGlow = this.removeGlow(this.focusGlow);
+        this.selectedGlowFilter = this.removeGlow(this.selectedGlowFilter);
         super.destroy(fromScene);
+    }
+
+    private addGlow(color: number, strength: number): Filters.Glow | null {
+        // enableFilters() is WebGL-only and no-ops (leaving `filters`
+        // null) without it — the button just won't glow there, no error.
+        // Safe to call repeatedly: it's a no-op once already enabled.
+        this.background.enableFilters();
+        // quality/distance are baked into the shader at creation, so a glow
+        // quality change only shows on buttons created afterwards — fine, the
+        // Settings scene restarts (recreating its buttons) on every change.
+        const { quality, distance, scale } = getGlowParams();
+        return this.background.filters?.external.addGlow(color, strength, 0, scale, false, quality, distance) ?? null;
+    }
+
+    private removeGlow(glow: Filters.Glow | null): null {
+        if (glow) {
+            this.background.filters?.external.remove(glow);
+        }
+        return null;
     }
 
     private applySelected(): void {
         if (this.selected) {
             this.background.setTint(SELECTED_TINT);
+            if (this.hasSelectedGlow) {
+                this.selectedGlowFilter ??= this.addGlow(SELECTED_GLOW_COLOR, SELECTED_GLOW_STRENGTH);
+            }
         } else {
             this.background.clearTint();
+            this.selectedGlowFilter = this.removeGlow(this.selectedGlowFilter);
         }
     }
 }
