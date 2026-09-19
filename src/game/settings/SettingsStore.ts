@@ -1,37 +1,18 @@
 import { EventBus } from '../events/EventBus';
 import { EVENTS } from '../events/GameEvents';
 import { settingsSchema, type DisplaySettings, type LanguageSettings, type Settings } from './settingsSchema';
-
-const STORAGE_KEY = 'phaser-game-v1:settings';
-
-function loadSettings(): Settings {
-    try {
-        const raw = window.localStorage.getItem(STORAGE_KEY);
-        return settingsSchema.parse(raw ? JSON.parse(raw) : {});
-    } catch {
-        // Corrupt JSON, an old/incompatible shape, or storage being unavailable
-        // (private browsing, quota) all just fall back to defaults.
-        return settingsSchema.parse({});
-    }
-}
-
-function persistSettings(settings: Settings): void {
-    try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-    } catch {
-        // Settings just won't survive a reload; not worth failing the update over.
-    }
-}
+import { getBrowserStorage, loadSettings, saveSettings } from './settingsStorage';
 
 /**
  * Single source of truth for persisted game settings. Reads/writes
- * localStorage (validated through settingsSchema) and broadcasts changes
+ * localStorage (validated through settingsSchema; see settingsStorage.ts)
+ * and broadcasts changes
  * over the EventBus so anything that depends on a setting — the canvas
  * resize/zoom for render quality, a scene re-rendering its UI — can react
  * without being directly coupled to whatever screen changed it.
  */
 class SettingsStoreImpl {
-    private settings: Settings = loadSettings();
+    private settings: Settings = loadSettings(getBrowserStorage());
 
     get(): Settings {
         return this.settings;
@@ -48,7 +29,7 @@ class SettingsStoreImpl {
     private commit(next: Settings): void {
         this.settings = settingsSchema.parse(next);
 
-        persistSettings(this.settings);
+        saveSettings(getBrowserStorage(), this.settings);
         EventBus.emit(EVENTS.SETTINGS_CHANGED, this.settings);
     }
 }
