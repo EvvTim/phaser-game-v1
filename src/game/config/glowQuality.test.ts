@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { GLOW_QUALITIES, getGlowParams, setGlowQuality } from './glowQuality';
+import { DEFAULT_GLOW_QUALITY, GLOW_QUALITIES, getGlowParams, setGlowQuality } from './glowQuality';
 
 const samples = (quality: (typeof GLOW_QUALITIES)[number]): number => {
     const { distance, quality: q } = getGlowParams(quality);
@@ -7,10 +7,15 @@ const samples = (quality: (typeof GLOW_QUALITIES)[number]): number => {
 };
 
 describe('glowQuality', () => {
-    afterEach(() => setGlowQuality('high'));
+    afterEach(() => setGlowQuality(DEFAULT_GLOW_QUALITY));
 
     it('keeps the original glow look at high quality', () => {
         expect(getGlowParams('high')).toEqual({ quality: 10, distance: 8, scale: 1 });
+    });
+
+    it('defaults to low quality', () => {
+        expect(DEFAULT_GLOW_QUALITY).toBe('low');
+        expect(getGlowParams()).toEqual(getGlowParams('low'));
     });
 
     it('takes fewer shader samples at each lower quality', () => {

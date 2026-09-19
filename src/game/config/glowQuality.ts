@@ -1,6 +1,9 @@
 export const GLOW_QUALITIES = ['high', 'medium', 'low'] as const;
 export type GlowQuality = (typeof GLOW_QUALITIES)[number];
 
+/** Cheapest preset by default — glow is decoration, so weaker GPUs shouldn't pay for it unless the player opts in. */
+export const DEFAULT_GLOW_QUALITY: GlowQuality = 'low';
+
 /**
  * Phaser's Glow shader samples the texture `distance × quality` times per
  * pixel (two nested loops), and both values are compiled into the shader —
@@ -21,7 +24,7 @@ const GLOW_PARAMS: Record<GlowQuality, GlowParams> = {
     low: { quality: 4, distance: 4, scale: 2 }, // 16 samples
 };
 
-let currentQuality: GlowQuality = 'high';
+let currentQuality: GlowQuality = DEFAULT_GLOW_QUALITY;
 
 /** Sets the active glow quality (see game/settings). Applies to glows created afterwards. */
 export function setGlowQuality(quality: GlowQuality): void {

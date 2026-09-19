@@ -13,9 +13,9 @@ describe('settingsSchema', () => {
         expect(result.display.renderQuality).toBe('medium');
     });
 
-    it('defaults glow quality to high and validates it', () => {
-        expect(settingsSchema.parse({}).display.glowQuality).toBe('high');
-        expect(settingsSchema.parse({ display: { glowQuality: 'low' } }).display.glowQuality).toBe('low');
+    it('defaults glow quality to low and validates it', () => {
+        expect(settingsSchema.parse({}).display.glowQuality).toBe('low');
+        expect(settingsSchema.parse({ display: { glowQuality: 'high' } }).display.glowQuality).toBe('high');
         expect(settingsSchema.safeParse({ display: { glowQuality: 'auto' } }).success).toBe(false);
     });
 
