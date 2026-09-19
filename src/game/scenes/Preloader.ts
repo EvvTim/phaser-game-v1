@@ -1,4 +1,5 @@
 import { Scene } from 'phaser';
+import { toDevicePixels } from '../config/pixelRatio';
 
 /**
  * Loads all assets needed by the rest of the game, with a visible
@@ -11,12 +12,16 @@ export class Preloader extends Scene {
 
     init(): void {
         const { width, height } = this.scale;
+        const barWidth = toDevicePixels(460);
+        const barX = width / 2 - barWidth / 2;
 
-        this.add.rectangle(width / 2, height / 2, 468, 32).setStrokeStyle(1, 0xffffff);
-        const bar = this.add.rectangle(width / 2 - 230, height / 2, 4, 28, 0xffffff);
+        this.add
+            .rectangle(width / 2, height / 2, toDevicePixels(468), toDevicePixels(32))
+            .setStrokeStyle(toDevicePixels(1), 0xffffff);
+        const bar = this.add.rectangle(barX, height / 2, toDevicePixels(4), toDevicePixels(28), 0xffffff);
 
         this.load.on('progress', (progress: number) => {
-            bar.width = 4 + 460 * progress;
+            bar.width = toDevicePixels(4) + barWidth * progress;
         });
     }
 

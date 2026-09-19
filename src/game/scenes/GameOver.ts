@@ -1,4 +1,5 @@
 import { Scene } from 'phaser';
+import { toDevicePixels } from '../config/pixelRatio';
 
 export class GameOver extends Scene {
     constructor() {
@@ -11,7 +12,7 @@ export class GameOver extends Scene {
         this.add
             .text(width / 2, height / 2, 'Game Over', {
                 fontFamily: 'Arial',
-                fontSize: 64,
+                fontSize: toDevicePixels(64),
                 color: '#ffffff',
             })
             .setOrigin(0.5);

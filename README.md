@@ -42,6 +42,26 @@ code they support:
   business logic (schemas, state, scoring, pooling) — never Phaser's own
   engine behavior.
 
+## Full-window, HiDPI-aware canvas
+
+The game fills the whole browser window and re-fits it on resize (see
+`game/main.ts`), and it renders at (a capped) `devicePixelRatio` so text and
+shapes stay crisp on Retina/HiDPI screens — Phaser 4 doesn't do this on its
+own (`Scale.RESIZE` always resets the canvas back to CSS-pixel resolution),
+so it's done manually with `Scale.NONE` + `scale.resize()` + `zoom`.
+
+One consequence: game-world units are device pixels, not CSS pixels. Any
+size meant to look visually consistent across screens — font sizes, stroke
+widths, UI element dimensions — must go through
+`toDevicePixels()` from `game/config/pixelRatio.ts` instead of a raw number:
+
+```ts
+fontSize: toDevicePixels(38) // not fontSize: 38
+```
+
+Positions derived from `this.scale.width` / `this.scale.height` need no
+conversion — they're already in that same device-pixel space.
+
 ## Assets
 
 Static files (audio, spritesheets, etc.) go in `public/assets` and are

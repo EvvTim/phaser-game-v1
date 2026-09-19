@@ -1,4 +1,5 @@
 import { Scene } from 'phaser';
+import { toDevicePixels } from '../config/pixelRatio';
 
 export class Game extends Scene {
     constructor() {
@@ -12,7 +13,7 @@ export class Game extends Scene {
         this.add
             .text(width / 2, height / 2, 'Game', {
                 fontFamily: 'Arial',
-                fontSize: 38,
+                fontSize: toDevicePixels(38),
                 color: '#ffffff',
             })
             .setOrigin(0.5);
