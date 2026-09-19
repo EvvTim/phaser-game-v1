@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { GLOW_QUALITIES } from '../config/glowQuality';
 import { RENDER_QUALITIES } from '../config/pixelRatio';
-import { DEFAULT_LANGUAGE, LANGUAGES } from '../i18n/languages';
+import { LANGUAGES, detectSystemLanguage } from '../i18n/languages';
 
 export const displaySettingsSchema = z.object({
     renderQuality: z.enum(RENDER_QUALITIES).default('auto'),
@@ -10,7 +10,8 @@ export const displaySettingsSchema = z.object({
 export type DisplaySettings = z.infer<typeof displaySettingsSchema>;
 
 export const languageSettingsSchema = z.object({
-    locale: z.enum(LANGUAGES).default(DEFAULT_LANGUAGE),
+    // Nothing saved yet → follow the system language (English if unsupported).
+    locale: z.enum(LANGUAGES).default(detectSystemLanguage),
 });
 export type LanguageSettings = z.infer<typeof languageSettingsSchema>;
 

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { LANGUAGES } from '../i18n/languages';
 import { settingsSchema } from './settingsSchema';
 
 describe('settingsSchema', () => {
@@ -18,8 +19,8 @@ describe('settingsSchema', () => {
         expect(settingsSchema.safeParse({ display: { glowQuality: 'auto' } }).success).toBe(false);
     });
 
-    it('defaults the language to Russian', () => {
-        expect(settingsSchema.parse({}).language.locale).toBe('ru');
+    it('defaults the language to a supported one (system language, else English)', () => {
+        expect(LANGUAGES).toContain(settingsSchema.parse({}).language.locale);
     });
 
     it.each(['ru', 'uk', 'en', 'pl'])('accepts the %s language', (locale) => {

@@ -17,9 +17,10 @@ function flattenKeys(value: object, prefix = ''): string[] {
 describe('i18n', () => {
     afterEach(() => setLanguage(DEFAULT_LANGUAGE));
 
-    it('starts in the default language', () => {
+    it('starts in English, the default language', () => {
         expect(getLanguage()).toBe(DEFAULT_LANGUAGE);
-        expect(t('mainMenu.play')).toBe('Играть');
+        expect(DEFAULT_LANGUAGE).toBe('en');
+        expect(t('mainMenu.play')).toBe('Play');
     });
 
     it.each([
