@@ -7,6 +7,7 @@ import { AUTO, Core, Game, Scale } from 'phaser';
 import { Preloader } from './scenes/Preloader';
 import { createValidatedGameConfig } from './config/gameConfig';
 import { getPixelRatio, setRenderQuality, toDevicePixels } from './config/pixelRatio';
+import { syncCanvasSize } from './config/canvasSize';
 import { SettingsStore } from './settings/SettingsStore';
 import { applyDisplaySettings } from './settings/applyDisplaySettings';
 import { EventBus } from './events/EventBus';
@@ -44,7 +45,7 @@ const StartGame = (parent: string): Game => {
     const game = new Game(config);
 
     const onWindowResize = (): void => {
-        game.scale.resize(toDevicePixels(window.innerWidth), toDevicePixels(window.innerHeight));
+        syncCanvasSize(game);
     };
 
     const onSettingsChanged = (settings: GameSettings): void => {

@@ -5,6 +5,9 @@ import { EventBus } from '../events/EventBus';
 import { SettingsStore } from '../settings/SettingsStore';
 import { Button } from '../ui/Button';
 import { TabBar } from '../ui/TabBar';
+import { Title } from '../ui/Title';
+import { UI_ATLAS_KEY, UI_FRAMES } from '../ui/uiAtlas';
+import { PANEL_SLICE } from '../ui/panelSlice';
 
 const TABS = [
     { key: 'display', label: 'Экран' },
@@ -42,22 +45,40 @@ export class Settings extends Scene {
     create(): void {
         const { width, height } = this.scale;
 
-        this.add
-            .text(width / 2, toDevicePixels(56), 'Настройки', {
-                fontFamily: 'Arial',
-                fontSize: toDevicePixels(32),
-                color: '#ffffff',
-            })
-            .setOrigin(0.5);
+        const titleY = toDevicePixels(55);
+        const title = new Title(this, width / 2, titleY, { label: 'Настройки' });
+        this.add.existing(title);
 
-        this.tabBar = new TabBar(this, width / 2, toDevicePixels(130), {
+        // Derived from the title's actual (auto-computed) height + a gap,
+        // rather than a second independent magic number — otherwise the
+        // two drift out of sync and the panel overlaps the title, exactly
+        // like it did when both were hand-picked separately.
+        const gapBelowTitle = toDevicePixels(20);
+        const panelHeight = toDevicePixels(270);
+        const panelY = titleY + title.height / 2 + gapBelowTitle + panelHeight / 2;
+        const panelTop = panelY - panelHeight / 2;
+
+        this.add.nineslice(
+            width / 2,
+            panelY,
+            UI_ATLAS_KEY,
+            UI_FRAMES.panelWood,
+            toDevicePixels(700),
+            panelHeight,
+            PANEL_SLICE.left,
+            PANEL_SLICE.right,
+            PANEL_SLICE.top,
+            PANEL_SLICE.bottom,
+        );
+
+        this.tabBar = new TabBar(this, width / 2, panelTop + toDevicePixels(45), {
             tabs: TABS.map(({ key, label }) => ({ key, label })),
             activeKey: this.activeTab,
             onSelect: (key) => this.selectTab(key as TabKey),
         });
         this.add.existing(this.tabBar);
 
-        this.content = this.add.container(width / 2, toDevicePixels(220));
+        this.content = this.add.container(width / 2, panelTop + toDevicePixels(135));
         this.renderActiveTab();
 
         const backButton = new Button(this, toDevicePixels(100), height - toDevicePixels(60), {

@@ -1,5 +1,6 @@
 import { Scene } from 'phaser';
 import { toDevicePixels } from '../config/pixelRatio';
+import { UI_ATLAS_KEY } from '../ui/uiAtlas';
 
 /**
  * Loads all assets needed by the rest of the game, with a visible
@@ -27,7 +28,7 @@ export class Preloader extends Scene {
 
     preload(): void {
         this.load.setPath('assets');
-        // TODO: load game assets here, e.g. this.load.image('key', 'file.png');
+        this.load.atlas(UI_ATLAS_KEY, 'ui/menu-atlas.png', 'ui/menu-atlas.json');
     }
 
     create(): void {

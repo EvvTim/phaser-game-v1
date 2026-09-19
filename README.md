@@ -91,9 +91,39 @@ far; the rest render a "Скоро..." stub until built out.
 - `src/game/ui/Button.ts` and `TabBar.ts` are plain `GameObjects.Container`
   components that don't self-register — call `scene.add.existing(...)` (or
   `container.add(...)` to nest one) after constructing them.
+- `Button` sizes itself like a CSS box: pass explicit `width`/`height`, or
+  omit either to size it from the label + `padding` instead (a number, an
+  `{ x, y }` pair, or individual sides — see `ui/padding.ts`). Asymmetric
+  padding shifts the label off-center within a fixed size, same as CSS.
+  `TabBar` uses this to size each tab to its own label instead of a single
+  fixed width that would overflow for longer ones.
+- `src/game/ui/Title.ts` is a screen header: a `banner_hex` background with
+  a centered label, same CSS-box sizing/padding as `Button` (they share the
+  sizing math via `ui/boxLayout.ts`) but not interactive. It's meant to sit
+  above a screen's content panel with its own background — see how
+  `MainMenu` and `Settings` position it before the panel, not inside it.
 
 ## Assets
 
 Static files (audio, spritesheets, etc.) go in `public/assets` and are
 loaded via `this.load.image('key', 'assets/file.png')`. Imported/bundled
 assets can instead be `import`-ed directly into a scene module.
+
+### UI kit atlas
+
+`public/assets/ui/menu-atlas.{png,json}` is a texture atlas (one shared
+texture, per CLAUDE.md's asset-reuse rule) of a wood/green cartoon UI kit —
+panels, buttons, bars, icon buttons. Loaded once in `Preloader`, referenced
+everywhere via `UI_ATLAS_KEY` / `UI_FRAMES` in `src/game/ui/uiAtlas.ts`
+rather than string literals.
+
+- `Button` and the Settings/MainMenu panel backgrounds use Phaser's native
+  `GameObjects.NineSlice` (`this.add.nineslice`) so the wood border stays
+  crisp while the middle stretches to fit — the slice metrics
+  (`ui/Button.ts`'s `SLICE`, `ui/panelSlice.ts`) are tuned for how large
+  each element actually renders in-game, not the raw source art
+  proportions; a NineSlice border is an absolute pixel size, so it doesn't
+  auto-scale down for a small button.
+- The atlas is generated from a raw, unsliced sprite sheet — see
+  `art-source/ui/README.md` for the extraction pipeline (only the source
+  art and scripts live there; it's never shipped, unlike the atlas).
