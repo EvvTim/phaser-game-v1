@@ -114,10 +114,23 @@ export class GamepadNavigator {
         });
     }
 
-    /** Replaces the navigable items, in navigation order, and focuses the first one. */
-    setItems(items: Button[]): void {
+    /**
+     * Replaces the navigable items, in navigation order, and focuses
+     * `initialFocus` if it's among them, otherwise the first one. Callers
+     * that rebuild the list on a state change (e.g. a tab switch) should
+     * pass the item that logically stays "current", or focus would jump
+     * back to the start every time.
+     */
+    setItems(items: Button[], initialFocus?: Button): void {
         this.items = items;
-        this.focusIndex = items.length > 0 ? 0 : -1;
+
+        const requestedIndex = initialFocus ? items.indexOf(initialFocus) : -1;
+        if (requestedIndex >= 0) {
+            this.focusIndex = requestedIndex;
+        } else {
+            this.focusIndex = items.length > 0 ? 0 : -1;
+        }
+
         this.applyFocusVisuals();
     }
 

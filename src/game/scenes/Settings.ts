@@ -154,7 +154,13 @@ export class Settings extends Scene {
 
         const contentButtons = this.activeTab === 'display' ? this.renderDisplayTab() : this.renderStubTab();
 
-        this.navigator.setItems([...this.tabBar.getButtons(), ...contentButtons, this.backButton]);
+        // Keep gamepad focus on the active tab: this runs on every tab
+        // switch (L/R or click), and defaulting to the first item would
+        // leave the glow stuck on the first tab.
+        this.navigator.setItems(
+            [...this.tabBar.getButtons(), ...contentButtons, this.backButton],
+            this.tabBar.getButton(this.activeTab),
+        );
     }
 
     private renderDisplayTab(): Button[] {
