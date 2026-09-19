@@ -1,4 +1,5 @@
 import { GameObjects, Scene } from 'phaser';
+import type { Filters } from 'phaser';
 import { toDevicePixels } from '../config/pixelRatio';
 import { UI_ATLAS_KEY, UI_FRAMES } from './uiAtlas';
 import type { Padding, PaddingBox } from './padding';
@@ -42,10 +43,23 @@ const SLICE = { left: 24, right: 20, top: 10, bottom: 14 };
 
 const SELECTED_TINT = 0xffe27a;
 
-/** How much a gamepad-focused button scales up — deliberately a different
- * visual cue than the selected-tint above, so a button can show both at
- * once (e.g. the currently active quality option also has gamepad focus). */
-const FOCUS_SCALE = 1.08;
+/**
+ * Gamepad-cursor highlight, via Phaser's Glow filter
+ * (https://docs.phaser.io/api-documentation/class/filters-glow) — a soft
+ * halo around the button. Deliberately a different visual cue than the
+ * selected-tint above, so a button can show both at once (e.g. the
+ * currently active quality option also has gamepad focus).
+ *
+ * Created lazily on focus and explicitly removed on blur/destroy, rather
+ * than left permanently enabled at zero strength: a Glow filter renders an
+ * extra pass per active instance, and with a whole tab bar + button row
+ * each holding one (as an "always on, toggle the strength" design first
+ * did), that's several such passes every frame for buttons that are never
+ * focused — a real, measured performance hit. At most one button is ever
+ * focused at a time, so at most one filter should exist at a time.
+ */
+const FOCUS_GLOW_COLOR = 0x66ccff;
+const FOCUS_GLOW_STRENGTH = 6;
 
 /** CSS-equivalent label font size, exported so callers (e.g. TabBar) can measure label width before choosing a button's own width. */
 export const BUTTON_LABEL_FONT_SIZE = 18;
@@ -63,6 +77,7 @@ export class Button extends GameObjects.Container {
     private readonly background: GameObjects.NineSlice;
     private readonly label: GameObjects.Text;
     private readonly onClick: () => void;
+    private focusGlow: Filters.Glow | null = null;
     private selected: boolean;
 
     constructor(scene: Scene, x: number, y: number, config: ButtonConfig) {
@@ -130,14 +145,45 @@ export class Button extends GameObjects.Container {
         this.applySelected();
     }
 
-    /** Gamepad-cursor highlight — distinct from `selected` (see FOCUS_SCALE). */
+    /** Gamepad-cursor highlight — distinct from `selected` (see FOCUS_GLOW_COLOR). */
     setFocused(focused: boolean): void {
-        this.setScale(focused ? FOCUS_SCALE : 1);
+        if (focused) {
+            if (!this.focusGlow) {
+                // enableFilters() is WebGL-only and no-ops (leaving `filters`
+                // null) without it — focus just won't glow there, no error.
+                // Safe to call repeatedly: it's a no-op once already enabled.
+                this.background.enableFilters();
+                this.focusGlow =
+                    this.background.filters?.external.addGlow(
+                        FOCUS_GLOW_COLOR,
+                        FOCUS_GLOW_STRENGTH,
+                        0,
+                        1,
+                        false,
+                        10,
+                        8,
+                    ) ?? null;
+            }
+        } else if (this.focusGlow) {
+            this.background.filters?.external.remove(this.focusGlow);
+            this.focusGlow = null;
+        }
     }
 
     /** Triggers this button's action programmatically (e.g. a gamepad confirm press). */
     activate(): void {
         this.onClick();
+    }
+
+    override destroy(fromScene?: boolean): void {
+        // Belt-and-braces: explicitly drop the filter before Phaser's own
+        // destroy cascade runs, rather than relying on it to clean up an
+        // enabled Filters/Glow on a child GameObject.
+        if (this.focusGlow) {
+            this.background.filters?.external.remove(this.focusGlow);
+            this.focusGlow = null;
+        }
+        super.destroy(fromScene);
     }
 
     private applySelected(): void {

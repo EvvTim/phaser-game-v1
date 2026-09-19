@@ -1,6 +1,7 @@
 import type { Scene } from 'phaser';
 import { Scenes } from 'phaser';
 import type { Input } from 'phaser';
+import { detectGamepadMapping, getButtonLabel } from './gamepadMapping';
 
 type Gamepad = Input.Gamepad.Gamepad;
 
@@ -50,7 +51,10 @@ export function attachGamepadLogger(scene: Scene): void {
         }
 
         const handler = (index: number, value: number): void => {
-            console.log(`[gamepad] button down: index=${index} value=${value.toFixed(2)}`);
+            const mapping = detectGamepadMapping(pad.id, pad.pad.mapping);
+            const label = getButtonLabel(mapping, index);
+            const name = label ? ` (${label})` : '';
+            console.log(`[gamepad] button down: index=${index}${name} value=${value.toFixed(2)}`);
         };
 
         pad.on('down', handler);

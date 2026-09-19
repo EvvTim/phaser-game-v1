@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { detectGamepadMapping, readHatDirection, STANDARD_MAPPING } from './gamepadMapping';
+import { detectGamepadMapping, getButtonLabel, readHatDirection, STANDARD_MAPPING } from './gamepadMapping';
 
 describe('detectGamepadMapping', () => {
     it('uses the standard mapping when the browser reports one', () => {
@@ -23,6 +23,16 @@ describe('detectGamepadMapping', () => {
 
     it('falls back to the standard mapping when the id has no vendor/product info', () => {
         expect(detectGamepadMapping('Generic Gamepad', '')).toBe(STANDARD_MAPPING);
+    });
+});
+
+describe('getButtonLabel', () => {
+    it('returns the known name for a mapped button', () => {
+        expect(getButtonLabel(STANDARD_MAPPING, 0)).toBe('A');
+    });
+
+    it('returns undefined for an index the mapping has no label for', () => {
+        expect(getButtonLabel(STANDARD_MAPPING, 999)).toBeUndefined();
     });
 });
 

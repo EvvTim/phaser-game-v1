@@ -25,6 +25,8 @@ export interface GamepadMapping {
     /** Printed on-controller names for the shoulder buttons, for on-screen hints (e.g. "press L / R to switch tabs"). */
     shoulderLeftLabel: string;
     shoulderRightLabel: string;
+    /** Printed name for every known button index, for diagnostics (see gamepadLogger.ts) — not every index need be present. */
+    buttonLabels: Partial<Record<number, string>>;
     dpad: DpadSource;
 }
 
@@ -34,8 +36,27 @@ export const STANDARD_MAPPING: GamepadMapping = {
     backButton: 1,
     shoulderLeftButton: 4,
     shoulderRightButton: 5,
-    shoulderLeftLabel: 'L',
-    shoulderRightLabel: 'R',
+    shoulderLeftLabel: 'L1',
+    shoulderRightLabel: 'R1',
+    buttonLabels: {
+        0: 'A',
+        1: 'B',
+        2: 'X',
+        3: 'Y',
+        4: 'L1',
+        5: 'R1',
+        6: 'L2',
+        7: 'R2',
+        8: 'Select',
+        9: 'Start',
+        10: 'L3',
+        11: 'R3',
+        12: 'D-pad Up',
+        13: 'D-pad Down',
+        14: 'D-pad Left',
+        15: 'D-pad Right',
+        16: 'Home',
+    },
     dpad: { type: 'buttons', up: 12, down: 13, left: 14, right: 15 },
 };
 
@@ -64,6 +85,22 @@ const SWITCH_2_PRO_CONTROLLER_MAPPING: GamepadMapping = {
     shoulderRightButton: 10, // R
     shoulderLeftLabel: 'L',
     shoulderRightLabel: 'R',
+    buttonLabels: {
+        0: 'B',
+        1: 'A',
+        2: 'Y',
+        3: 'X',
+        4: '-',
+        5: 'Home',
+        6: '+',
+        9: 'L',
+        10: 'R',
+        15: 'Capture',
+        16: 'GR',
+        17: 'GL',
+        18: 'Chat',
+        // 7, 8, 11-14 unconfirmed (likely stick clicks) — see gamepadLogger.ts to fill in.
+    },
     dpad: {
         type: 'hatAxis',
         axisIndex: 9,
@@ -97,6 +134,11 @@ export function detectGamepadMapping(padId: string, browserMapping: string): Gam
     }
 
     return STANDARD_MAPPING;
+}
+
+/** The known name for a button index (e.g. "L", "A"), or `undefined` if this mapping doesn't have one for it. */
+export function getButtonLabel(mapping: GamepadMapping, index: number): string | undefined {
+    return mapping.buttonLabels[index];
 }
 
 /** Which (if any) direction a hat-axis value currently represents, within tolerance. */
