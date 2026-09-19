@@ -2,8 +2,10 @@ import { GameObjects, Scene, Scenes } from 'phaser';
 import { RENDER_QUALITIES, toDevicePixels, type RenderQuality } from '../config/pixelRatio';
 import { EVENTS } from '../events/GameEvents';
 import { EventBus } from '../events/EventBus';
+import { GamepadNavigator } from '../input/GamepadNavigator';
 import { SettingsStore } from '../settings/SettingsStore';
 import { Button } from '../ui/Button';
+import { GamepadHint } from '../ui/GamepadHint';
 import { TabBar } from '../ui/TabBar';
 import { Title } from '../ui/Title';
 import { UI_ATLAS_KEY, UI_FRAMES } from '../ui/uiAtlas';
@@ -32,6 +34,8 @@ interface SettingsSceneData {
 export class Settings extends Scene {
     private tabBar!: TabBar;
     private content!: GameObjects.Container;
+    private backButton!: Button;
+    private navigator!: GamepadNavigator;
     private activeTab: TabKey = 'display';
 
     constructor() {
@@ -71,23 +75,49 @@ export class Settings extends Scene {
             PANEL_SLICE.bottom,
         );
 
-        this.tabBar = new TabBar(this, width / 2, panelTop + toDevicePixels(45), {
+        const tabBarY = panelTop + toDevicePixels(45);
+        this.tabBar = new TabBar(this, width / 2, tabBarY, {
             tabs: TABS.map(({ key, label }) => ({ key, label })),
             activeKey: this.activeTab,
             onSelect: (key) => this.selectTab(key as TabKey),
         });
         this.add.existing(this.tabBar);
 
-        this.content = this.add.container(width / 2, panelTop + toDevicePixels(135));
-        this.renderActiveTab();
+        // Only shown while a gamepad is connected (see onGamepadStatusChange
+        // below) — text-only for now, swap for button-icon assets later
+        // without touching this positioning.
+        const panelHalfWidth = toDevicePixels(350);
+        const hintGap = toDevicePixels(25);
+        const leftTabHint = new GamepadHint(this, width / 2 - panelHalfWidth - hintGap, tabBarY);
+        this.add.existing(leftTabHint);
+        const rightTabHint = new GamepadHint(this, width / 2 + panelHalfWidth + hintGap, tabBarY);
+        this.add.existing(rightTabHint);
 
-        const backButton = new Button(this, toDevicePixels(100), height - toDevicePixels(60), {
+        this.content = this.add.container(width / 2, panelTop + toDevicePixels(135));
+
+        this.backButton = new Button(this, toDevicePixels(100), height - toDevicePixels(60), {
             label: '< Назад',
             width: toDevicePixels(150),
             height: toDevicePixels(44),
             onClick: () => this.scene.start('MainMenu'),
         });
-        this.add.existing(backButton);
+        this.add.existing(this.backButton);
+
+        this.navigator = new GamepadNavigator(this, {
+            onBack: () => this.scene.start('MainMenu'),
+            onShoulderLeft: () => this.cycleTab(-1),
+            onShoulderRight: () => this.cycleTab(1),
+            onGamepadStatusChange: (mapping) => {
+                if (mapping) {
+                    leftTabHint.show(mapping.shoulderLeftLabel);
+                    rightTabHint.show(mapping.shoulderRightLabel);
+                } else {
+                    leftTabHint.hide();
+                    rightTabHint.hide();
+                }
+            },
+        });
+        this.renderActiveTab();
 
         // A render-quality change re-renders this scene from scratch (see
         // renderDisplayTab) so its own text/UI is redrawn at the new pixel
@@ -112,17 +142,22 @@ export class Settings extends Scene {
         this.renderActiveTab();
     }
 
+    /** L/R shoulder buttons jump directly between tabs (wrapping), independent of D-pad focus. */
+    private cycleTab(delta: number): void {
+        const currentIndex = TABS.findIndex((tab) => tab.key === this.activeTab);
+        const nextIndex = (currentIndex + delta + TABS.length) % TABS.length;
+        this.selectTab(TABS[nextIndex].key);
+    }
+
     private renderActiveTab(): void {
         this.content.removeAll(true);
 
-        if (this.activeTab === 'display') {
-            this.renderDisplayTab();
-        } else {
-            this.renderStubTab();
-        }
+        const contentButtons = this.activeTab === 'display' ? this.renderDisplayTab() : this.renderStubTab();
+
+        this.navigator.setItems([...this.tabBar.getButtons(), ...contentButtons, this.backButton]);
     }
 
-    private renderDisplayTab(): void {
+    private renderDisplayTab(): Button[] {
         const heading = this.add
             .text(0, 0, 'Качество рендера', {
                 fontFamily: 'Arial',
@@ -140,6 +175,7 @@ export class Settings extends Scene {
 
         let cursorX = -totalWidth / 2 + buttonWidth / 2;
         const current = SettingsStore.get().display.renderQuality;
+        const buttons: Button[] = [];
 
         for (const quality of RENDER_QUALITIES) {
             const button = new Button(this, cursorX, y, {
@@ -150,11 +186,14 @@ export class Settings extends Scene {
                 onClick: () => SettingsStore.setDisplay({ renderQuality: quality }),
             });
             this.content.add(button);
+            buttons.push(button);
             cursorX += buttonWidth + gap;
         }
+
+        return buttons;
     }
 
-    private renderStubTab(): void {
+    private renderStubTab(): Button[] {
         const text = this.add
             .text(0, toDevicePixels(40), 'Скоро...', {
                 fontFamily: 'Arial',
@@ -163,5 +202,7 @@ export class Settings extends Scene {
             })
             .setOrigin(0.5);
         this.content.add(text);
+
+        return [];
     }
 }

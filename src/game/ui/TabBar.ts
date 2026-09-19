@@ -71,4 +71,9 @@ export class TabBar extends GameObjects.Container {
     setActiveTab(key: string): void {
         this.buttons.forEach((button, buttonKey) => button.setSelected(buttonKey === key));
     }
+
+    /** The tab buttons, in display order — e.g. for registering with a GamepadNavigator. */
+    getButtons(): Button[] {
+        return [...this.buttons.values()];
+    }
 }

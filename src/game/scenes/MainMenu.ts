@@ -1,6 +1,7 @@
 import { Scene } from 'phaser';
 import { toDevicePixels } from '../config/pixelRatio';
 import { attachGamepadLogger } from '../input/gamepadLogger';
+import { GamepadNavigator } from '../input/GamepadNavigator';
 import { Button } from '../ui/Button';
 import { Title } from '../ui/Title';
 import { UI_ATLAS_KEY, UI_FRAMES } from '../ui/uiAtlas';
@@ -58,5 +59,7 @@ export class MainMenu extends Scene {
             onClick: () => this.scene.start('Settings'),
         });
         this.add.existing(settingsButton);
+
+        new GamepadNavigator(this).setItems([playButton, settingsButton]);
     }
 }

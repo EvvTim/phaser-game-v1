@@ -42,6 +42,11 @@ const SLICE = { left: 24, right: 20, top: 10, bottom: 14 };
 
 const SELECTED_TINT = 0xffe27a;
 
+/** How much a gamepad-focused button scales up — deliberately a different
+ * visual cue than the selected-tint above, so a button can show both at
+ * once (e.g. the currently active quality option also has gamepad focus). */
+const FOCUS_SCALE = 1.08;
+
 /** CSS-equivalent label font size, exported so callers (e.g. TabBar) can measure label width before choosing a button's own width. */
 export const BUTTON_LABEL_FONT_SIZE = 18;
 
@@ -57,12 +62,14 @@ const DEFAULT_PADDING_CSS: PaddingBox = { top: 12, right: 24, bottom: 12, left: 
 export class Button extends GameObjects.Container {
     private readonly background: GameObjects.NineSlice;
     private readonly label: GameObjects.Text;
+    private readonly onClick: () => void;
     private selected: boolean;
 
     constructor(scene: Scene, x: number, y: number, config: ButtonConfig) {
         super(scene, x, y);
 
         this.selected = config.selected ?? false;
+        this.onClick = config.onClick;
 
         const fallbackPadding: PaddingBox = {
             top: toDevicePixels(DEFAULT_PADDING_CSS.top),
@@ -109,7 +116,7 @@ export class Button extends GameObjects.Container {
         this.setSize(layout.width, layout.height);
 
         this.background.setInteractive({ useHandCursor: true });
-        this.background.on('pointerdown', config.onClick);
+        this.background.on('pointerdown', this.onClick);
 
         this.applySelected();
     }
@@ -121,6 +128,16 @@ export class Button extends GameObjects.Container {
 
         this.selected = selected;
         this.applySelected();
+    }
+
+    /** Gamepad-cursor highlight — distinct from `selected` (see FOCUS_SCALE). */
+    setFocused(focused: boolean): void {
+        this.setScale(focused ? FOCUS_SCALE : 1);
+    }
+
+    /** Triggers this button's action programmatically (e.g. a gamepad confirm press). */
+    activate(): void {
+        this.onClick();
     }
 
     private applySelected(): void {

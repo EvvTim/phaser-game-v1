@@ -37,9 +37,37 @@ src/game/scenes/        Boot -> Preloader -> MainMenu -> Game -> GameOver, MainM
 
 Gamepad support uses Phaser's built-in `Input.Gamepad` plugin (enabled via
 `input.gamepad: true` in `game/main.ts`) rather than raw `navigator.getGamepads()`.
-`src/game/input/gamepadLogger.ts` is currently just a console-log diagnostic,
-wired into the interactive scenes, to confirm detection works — replace it
-with real input handling once gamepad controls are designed.
+
+- `src/game/input/gamepadMapping.ts` — per-controller button/axis indices.
+  Not every controller reports the W3C "standard" gamepad layout — very new
+  hardware the browser doesn't have in its mapping database yet reports
+  `mapping: ''`, and its real indices (buttons *and* which axis the D-pad
+  lands on, if it's not even button-based) have to be found empirically.
+  Currently has `STANDARD_MAPPING` plus one hardcoded, empirically-measured
+  entry for the Nintendo Switch 2 Pro Controller (D-pad is a single hat-style
+  axis, not 4 buttons) — add another entry here as new non-standard
+  controllers turn up. Confirm/back follow *that controller's own*
+  convention (e.g. Nintendo's right-face-button-confirms, not Xbox's
+  bottom-button-confirms), not a hardcoded global choice.
+- `src/game/input/GamepadNavigator.ts` — one per scene; give it an ordered
+  `Button[]` via `setItems()` (rebuild it whenever that set changes, e.g.
+  Settings on tab switch) and it drives D-pad focus movement + confirm/back,
+  showing focus via `Button.setFocused()` (a scale-up, independent of the
+  `selected` tint so both can show at once). Shoulder buttons (`onShoulderLeft`/
+  `onShoulderRight`) fire independently of focus, e.g. Settings uses them to
+  jump directly between tabs. `onGamepadStatusChange` reports the first
+  connected pad's mapping (or `null`) — Settings uses it to show/hide the
+  `ui/GamepadHint.ts` "L"/"R" labels next to the tab bar only while a
+  gamepad is actually connected, using that mapping's own button names
+  (`shoulderLeftLabel`/`shoulderRightLabel`) rather than a hardcoded guess.
+  Remember to remove any `pad.on('down', ...)` / plugin listener you add
+  elsewhere on scene shutdown — the physical device's Gamepad wrapper
+  outlives any one scene, so an un-removed listener leaks and keeps firing
+  (with stale state) alongside whatever replaces it.
+- `src/game/input/gamepadLogger.ts` is a console-log diagnostic for
+  discovering a new controller's mapping empirically (as above) — kept
+  around for the next unrecognized device, not removed now that the Switch
+  2 Pro Controller itself works.
 
 As gameplay is added, prefer these additional folders, kept next to the
 code they support:
