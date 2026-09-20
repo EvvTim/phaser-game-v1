@@ -2,7 +2,8 @@ import type { Translation } from './en';
 
 export const pl: Translation = {
     common: {
-        back: '< Wstecz',
+        back: 'Wstecz',
+        open: 'Otwórz',
     },
     hints: {
         confirm: 'Wybierz',
@@ -14,14 +15,13 @@ export const pl: Translation = {
     },
     settings: {
         title: 'Ustawienia',
-        tabs: {
+        sections: {
             display: 'Ekran',
-            controls: 'Sterowanie',
             language: 'Język',
             audio: 'Dźwięk',
+            controls: 'Sterowanie',
         },
         display: {
-            glowQuality: 'Jakość poświaty',
             renderQuality: 'Jakość renderowania',
             quality: {
                 auto: 'Auto',
@@ -34,6 +34,7 @@ export const pl: Translation = {
             heading: 'Język',
         },
         controls: {
+            tester: 'Test kontrolera',
             noGamepad: 'Podłącz kontroler i naciśnij dowolny przycisk',
             rawButtons: 'Surowe przyciski i osie',
             rawLayout: 'Surowe przyciski i osie (nierozpoznany układ)',

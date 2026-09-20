@@ -2,145 +2,128 @@ import { GameObjects, Scene, Scenes } from 'phaser';
 import { emitUiSound } from '../audio/emitUiSound';
 import { MUSIC_TRACK_IDS } from '../audio/musicTracks';
 import { IS_DEV } from '../config/devMode';
-import { GLOW_QUALITIES } from '../config/glowQuality';
-import { RENDER_QUALITIES, toDevicePixels } from '../config/pixelRatio';
+import { RENDER_QUALITIES } from '../config/pixelRatio';
 import { EVENTS } from '../events/GameEvents';
 import { EventBus } from '../events/EventBus';
-import { t } from '../i18n/i18n';
+import { getLanguage, t } from '../i18n/i18n';
 import { LANGUAGES, LANGUAGE_NATIVE_NAMES } from '../i18n/languages';
 import { GamepadNavigator } from '../input/GamepadNavigator';
+import type { NavigableItem } from '../input/NavigableItem';
 import { getSettingsChangeEffect } from '../settings/settingsChange';
 import { SettingsStore } from '../settings/SettingsStore';
 import type { Settings as GameSettings } from '../settings/settingsSchema';
-import { getVisibleTabs, resolveActiveTab, type SettingsTabKey } from '../settings/settingsTabs';
-import { Button } from '../ui/Button';
+import {
+    getVisibleSections,
+    resolveSection,
+    stepSection,
+    type SettingsSectionKey,
+} from '../settings/settingsSections';
+import { ArrowSelector } from '../ui/ArrowSelector';
+import { ChoiceChips } from '../ui/ChoiceChips';
 import { GamepadHint } from '../ui/GamepadHint';
-import { GamepadTester } from '../ui/GamepadTester';
 import { getPromptFrame } from '../ui/gamepadPrompts';
-import { SectionHeading } from '../ui/SectionHeading';
-import { TabBar } from '../ui/TabBar';
-import { Title } from '../ui/Title';
-import { UI_ATLAS_KEY, UI_FRAMES } from '../ui/uiAtlas';
-import { VolumeSlider } from '../ui/VolumeSlider';
-import { PANEL_SLICE } from '../ui/panelSlice';
+import { LineSlider } from '../ui/LineSlider';
+import { restartSceneOnResize } from '../ui/restartSceneOnResize';
+import { addSettingsBackdrop } from '../ui/settingsBackdrop';
+import { drawHeadingRules, drawSettingsDecor } from '../ui/settingsDecor';
+import { computeSettingsLayout, type SettingsEntry, type SettingsLayout } from '../ui/settingsLayout';
+import { SETTINGS_COLORS } from '../ui/settingsTheme';
+import { TextButton } from '../ui/TextButton';
+import { gameTextStyle } from '../ui/textStyle';
 
-/** The Controls tab (the gamepad tester) is DEV-only, so it's missing from production builds. */
-const TABS = getVisibleTabs(IS_DEV);
+/** Controls is DEV-only (it just opens the gamepad tester), so it is missing from production builds. */
+const SECTIONS = getVisibleSections(IS_DEV);
 
-type TabKey = SettingsTabKey;
-
-/** Vertical distance (CSS px) between stacked option rows in a settings tab. */
-const OPTION_ROW_SPACING = 100;
-
-/** Panel height (CSS px) per tab: the Audio tab stacks a track row and three volume rows, so it's taller. */
-const DEFAULT_PANEL_HEIGHT = 330;
-const PANEL_HEIGHTS: Partial<Record<TabKey, number>> = { audio: 450 };
-
-/** Vertical offsets (CSS px, in the content area) of the Audio tab's three volume rows. */
-const VOLUME_ROWS_TOP = 140;
-const VOLUME_ROW_SPACING = 60;
-
-interface OptionRowItem<T extends string> {
-    value: T;
-    label: string;
-}
+/**
+ * Every section is a heading plus this many rows at most — Audio, the
+ * longest, has a music track and three volumes (Display and Language have one row each). The page frame is sized for
+ * it, so the title, tabs and Back action don't jump when switching tabs.
+ */
+const MAX_SECTION_ROWS = 4;
+const FRAME: readonly SettingsEntry[] = ['heading', ...Array.from({ length: MAX_SECTION_ROWS }, () => 'row' as const)];
 
 interface SettingsSceneData {
-    activeTab?: TabKey;
+    section?: SettingsSectionKey;
 }
 
+/**
+ * The settings screen, in the chalkboard style of examples/settings-menu-example.png:
+ * the title, a row of section tabs (Display, Language, Audio, and in DEV
+ * Controls), then the active section — its heading and `label  control` rows.
+ * Tabs are clicked, or switched with the gamepad's L / R shoulders; they are
+ * deliberately not D-pad targets, so the D-pad only walks the section's
+ * controls. Every setting applies at once and is saved by SettingsStore, so
+ * there is nothing to confirm — the action at the bottom just goes back.
+ *
+ * Controls (`ChoiceChips`, `ArrowSelector`, `LineSlider`, `TextButton`) are
+ * gamepad-navigable and update themselves in place; the scene only restarts
+ * for changes that alter how the UI is built (see getSettingsChangeEffect).
+ */
 export class Settings extends Scene {
-    private tabBar!: TabBar;
+    private activeSection: SettingsSectionKey = 'display';
+    private layout!: SettingsLayout;
     private content!: GameObjects.Container;
-    private backButton!: Button;
+    private tabs!: ChoiceChips<SettingsSectionKey>;
     private navigator!: GamepadNavigator;
-    private panel!: GameObjects.NineSlice;
-    private panelTop = 0;
-    private activeTab: TabKey = 'display';
+    private backButton!: TextButton;
 
     constructor() {
         super('Settings');
     }
 
     init(data: SettingsSceneData): void {
-        this.activeTab = resolveActiveTab(data.activeTab, TABS);
+        this.activeSection = resolveSection(data.section, SECTIONS);
     }
 
     create(): void {
         const { width, height } = this.scale;
 
         // Keeps the menu music going if this scene is entered directly, and
-        // lets the Audio scene follow the track picked in the Audio tab.
+        // lets the Audio scene follow the settings changed here.
         EventBus.emit(EVENTS.MUSIC_MENU_START);
 
-        const titleY = toDevicePixels(55);
-        const title = new Title(this, width / 2, titleY, { label: t('settings.title') });
-        this.add.existing(title);
+        const layout = computeSettingsLayout(width, height, FRAME, { tabs: true });
+        this.layout = layout;
+        const { metrics } = layout;
 
-        // Derived from the title's actual (auto-computed) height + a gap,
-        // rather than a second independent magic number — otherwise the
-        // two drift out of sync and the panel overlaps the title, exactly
-        // like it did when both were hand-picked separately.
-        const gapBelowTitle = toDevicePixels(20);
-        const panelTop = titleY + title.height / 2 + gapBelowTitle;
-        this.panelTop = panelTop;
+        addSettingsBackdrop(this);
+        drawSettingsDecor(this, layout);
 
-        // Sized (and centred) for the active tab by applyPanelHeight().
-        this.panel = this.add.nineslice(
-            width / 2,
-            panelTop,
-            UI_ATLAS_KEY,
-            UI_FRAMES.panelWood,
-            toDevicePixels(700),
-            toDevicePixels(DEFAULT_PANEL_HEIGHT),
-            PANEL_SLICE.left,
-            PANEL_SLICE.right,
-            PANEL_SLICE.top,
-            PANEL_SLICE.bottom,
-        );
-        this.applyPanelHeight();
+        this.add
+            .text(
+                layout.title.x,
+                layout.title.y,
+                t('settings.title').toLocaleUpperCase(getLanguage()),
+                gameTextStyle({
+                    fontSize: metrics.titleFontSize,
+                    color: SETTINGS_COLORS.creamCss,
+                    letterSpacing: 4 * layout.unit,
+                }),
+            )
+            .setOrigin(0.5);
 
-        const tabBarY = panelTop + toDevicePixels(55);
-        this.tabBar = new TabBar(this, width / 2, tabBarY, {
-            tabs: TABS.map((key) => ({ key, label: t(`settings.tabs.${key}`) })),
-            activeKey: this.activeTab,
-            onSelect: (key) => this.selectTab(key as TabKey),
-        });
-        this.add.existing(this.tabBar);
+        // The controls of the active section live here, so a tab switch can rebuild them.
+        this.content = this.add.container(0, 0);
 
-        // Only shown while a gamepad is connected (see onGamepadStatusChange
-        // below); the icons match the connected controller's brand.
-        const panelHalfWidth = toDevicePixels(350);
-        const hintGap = toDevicePixels(40);
-        const leftTabHint = new GamepadHint(this, width / 2 - panelHalfWidth - hintGap, tabBarY);
-        this.add.existing(leftTabHint);
-        const rightTabHint = new GamepadHint(this, width / 2 + panelHalfWidth + hintGap, tabBarY);
-        this.add.existing(rightTabHint);
+        this.addTabs(layout);
 
-        const hintsY = height - toDevicePixels(60);
-        const confirmHint = new GamepadHint(this, width - toDevicePixels(250), hintsY);
-        this.add.existing(confirmHint);
-        const backHint = new GamepadHint(this, width - toDevicePixels(100), hintsY);
-        this.add.existing(backHint);
+        const goBack = (): void => {
+            emitUiSound('back');
+            this.scene.start('MainMenu');
+        };
 
-        this.content = this.add.container(width / 2, panelTop + toDevicePixels(110));
-
-        this.backButton = new Button(this, toDevicePixels(100), height - toDevicePixels(60), {
-            label: t('common.back'),
-            width: toDevicePixels(150),
-            height: toDevicePixels(44),
-            sound: 'back',
-            onClick: () => this.scene.start('MainMenu'),
-        });
-        this.add.existing(this.backButton);
+        // Only shown while a gamepad is connected; the icons match the controller's brand.
+        const tabsY = layout.tabsY ?? 0;
+        const tabHintOffset = this.tabs.totalWidth / 2 + 70 * layout.unit;
+        const leftTabHint = this.addHint(layout.centerX - tabHintOffset, tabsY);
+        const rightTabHint = this.addHint(layout.centerX + tabHintOffset, tabsY);
+        const confirmHint = this.addHint(layout.hints.confirm.x, layout.hints.confirm.y);
+        const backHint = this.addHint(layout.hints.back.x, layout.hints.back.y);
 
         this.navigator = new GamepadNavigator(this, {
-            onBack: () => {
-                emitUiSound('back');
-                this.scene.start('MainMenu');
-            },
-            onShoulderLeft: () => this.cycleTab(-1),
-            onShoulderRight: () => this.cycleTab(1),
+            onBack: goBack,
+            onShoulderLeft: () => this.cycleSection(-1),
+            onShoulderRight: () => this.cycleSection(1),
             onGamepadStatusChange: (mapping) => {
                 if (mapping) {
                     leftTabHint.show(getPromptFrame(mapping.family, 'shoulderLeft'));
@@ -154,205 +137,297 @@ export class Settings extends Scene {
                 }
             },
         });
-        this.renderActiveTab();
 
-        // A render-quality or language change re-renders this scene from
-        // scratch so its own text/UI is redrawn at the new pixel ratio /
-        // in the new language (main.ts applies the change first — its
-        // SETTINGS_CHANGED listener is registered before any scene's).
-        // Volume changes must NOT rebuild anything (a slider may be mid-drag);
-        // see getSettingsChangeEffect.
+        this.backButton = new TextButton(this, layout.action.x, layout.action.y, {
+            label: t('common.back').toLocaleUpperCase(getLanguage()),
+            fontSize: metrics.actionFontSize,
+            color: SETTINGS_COLORS.creamCss,
+            frameStroke: metrics.frameStroke,
+            framePadding: metrics.framePadding,
+            sound: 'back',
+            onClick: goBack,
+            onHover: (item) => this.navigator.focusItem(item),
+        });
+        this.add.existing(this.backButton);
+
+        this.renderSection();
+
+        // A render-quality or language change rebuilds this scene so its UI is redrawn at the new
+        // pixel ratio / language (main.ts applies the change first — its SETTINGS_CHANGED listener
+        // is registered before any scene's). Anything else is already shown by the control that
+        // made it (see getSettingsChangeEffect).
         let previousSettings = SettingsStore.get();
         const onSettingsChanged = (settings: GameSettings): void => {
             const effect = getSettingsChangeEffect(previousSettings, settings);
             previousSettings = settings;
 
             if (effect === 'restart') {
-                this.scene.restart({ activeTab: this.activeTab });
-            } else if (effect === 'rerender') {
-                this.renderActiveTab();
+                this.scene.restart({ section: this.activeSection });
             }
         };
         EventBus.on(EVENTS.SETTINGS_CHANGED, onSettingsChanged);
         this.events.once(Scenes.Events.SHUTDOWN, () => {
             EventBus.off(EVENTS.SETTINGS_CHANGED, onSettingsChanged);
         });
+        restartSceneOnResize(this, () => ({ section: this.activeSection }));
     }
 
-    private selectTab(key: TabKey): void {
-        if (key === this.activeTab) {
+    private addHint(x: number, y: number): GamepadHint {
+        const hint = new GamepadHint(this, x, y);
+        this.add.existing(hint);
+        return hint;
+    }
+
+    /** The tab row under the title, centred; tabs are never registered with the gamepad navigator. */
+    private addTabs(layout: SettingsLayout): void {
+        const { metrics } = layout;
+
+        this.tabs = new ChoiceChips<SettingsSectionKey>(this, 0, layout.tabsY ?? 0, {
+            options: SECTIONS.map((key) => ({
+                value: key,
+                label: t(`settings.sections.${key}`).toLocaleUpperCase(getLanguage()),
+            })),
+            value: this.activeSection,
+            metrics: {
+                fontSize: metrics.tabFontSize,
+                paddingX: metrics.tabPaddingX,
+                paddingY: metrics.chipPaddingY,
+                frameStroke: metrics.frameStroke,
+                framePadding: metrics.framePadding,
+                letterSpacing: metrics.tabLetterSpacing,
+            },
+            gap: metrics.tabGap,
+            // Switching tabs sounds like moving focus; L / R switches play the same sound.
+            sound: 'navigate',
+            onSelect: (key) => this.selectSection(key),
+        });
+        this.tabs.setX(layout.centerX - this.tabs.totalWidth / 2);
+        this.add.existing(this.tabs);
+    }
+
+    private selectSection(key: SettingsSectionKey): void {
+        if (key === this.activeSection) {
             return;
         }
 
-        this.activeTab = key;
-        this.tabBar.setActiveTab(key);
-        this.renderActiveTab();
-        emitUiSound('navigate');
+        this.activeSection = key;
+        this.tabs.setValue(key);
+        this.renderSection();
     }
 
-    /** L/R shoulder buttons jump directly between tabs (wrapping), independent of D-pad focus. */
-    private cycleTab(delta: number): void {
-        const currentIndex = TABS.indexOf(this.activeTab);
-        const nextIndex = (currentIndex + delta + TABS.length) % TABS.length;
-        this.selectTab(TABS[nextIndex]);
+    /** L / R shoulder buttons step between sections (wrapping), independent of D-pad focus. */
+    private cycleSection(delta: number): void {
+        const next = stepSection(this.activeSection, SECTIONS, delta);
+        if (next !== this.activeSection) {
+            emitUiSound('navigate');
+            this.selectSection(next);
+        }
     }
 
-    /** Sizes the wood panel for the active tab and keeps its top edge fixed. */
-    private applyPanelHeight(): void {
-        const height = toDevicePixels(PANEL_HEIGHTS[this.activeTab] ?? DEFAULT_PANEL_HEIGHT);
-        this.panel.setSize(this.panel.width, height);
-        this.panel.setY(this.panelTop + height / 2);
-    }
-
-    private renderActiveTab(): void {
-        this.applyPanelHeight();
+    /** Rebuilds the page under the tabs for the active section and points the navigator at it. */
+    private renderSection(): void {
         this.content.removeAll(true);
 
-        const contentButtons = this.renderTabContent();
+        const items = this.buildSection(this.activeSection);
 
-        // The tab buttons are deliberately not registered: tabs change only
-        // via L/R (or a click), never by D-pad focus movement. Focus starts
-        // on the section's first interactive element (or Back, if it has none).
-        this.navigator.setItems([...contentButtons, this.backButton]);
+        // Focus starts on the section's first control (or Back, if it has none).
+        this.navigator.setItems([...items, this.backButton]);
     }
 
-    private renderTabContent(): Button[] {
-        switch (this.activeTab) {
-            case 'display':
-                return this.renderDisplayTab();
-            case 'language':
-                return this.renderLanguageTab();
-            case 'controls':
-                return this.renderControlsTab();
-            case 'audio':
-                return this.renderAudioTab();
-        }
-    }
+    /** The section's heading and rows; returns their navigable controls, top to bottom. */
+    private buildSection(section: SettingsSectionKey): NavigableItem[] {
+        const layout = this.layout;
+        const { metrics } = layout;
+        const { display, language, audio } = SettingsStore.get();
+        const focusOnHover = (item: NavigableItem): void => this.navigator.focusItem(item);
+        const items: NavigableItem[] = [];
+        let row = 0;
 
-    private renderDisplayTab(): Button[] {
-        const { renderQuality, glowQuality } = SettingsStore.get().display;
+        /** Adds a game object to the section's container, so a tab switch removes it. */
+        const put = <T extends GameObjects.GameObject>(object: T): T => {
+            this.content.add(object);
+            return object;
+        };
 
-        return [
-            ...this.renderOptionRow(
-                0,
-                t('settings.display.renderQuality'),
-                RENDER_QUALITIES.map((value) => ({ value, label: t(`settings.display.quality.${value}`) })),
-                renderQuality,
-                (value) => SettingsStore.setDisplay({ renderQuality: value }),
-            ),
-            ...this.renderOptionRow(
-                OPTION_ROW_SPACING,
-                t('settings.display.glowQuality'),
-                GLOW_QUALITIES.map((value) => ({ value, label: t(`settings.display.quality.${value}`) })),
-                glowQuality,
-                (value) => SettingsStore.setDisplay({ glowQuality: value }),
-            ),
-        ];
-    }
+        /** The section title, centred between two thin rules, quieter than the row labels. */
+        const addHeading = (label: string): void => {
+            const y = layout.headingYs[0];
+            const heading = put(
+                this.add
+                    .text(
+                        layout.centerX,
+                        y,
+                        label.toLocaleUpperCase(getLanguage()),
+                        gameTextStyle({
+                            fontSize: metrics.headingFontSize,
+                            color: SETTINGS_COLORS.idleCss,
+                            letterSpacing: metrics.headingLetterSpacing,
+                        }),
+                    )
+                    .setOrigin(0.5),
+            );
+            put(drawHeadingRules(this, layout, y, heading.width));
+        };
 
-    /** Live gamepad test; it has no buttons of its own, so D-pad focus stays on Back. */
-    private renderControlsTab(): Button[] {
-        // The tab itself is hidden outside DEV; this guard also lets the
-        // bundler drop GamepadTester (and its layout data) from production.
-        if (IS_DEV) {
-            this.content.add(new GamepadTester(this, 0, 0));
-        }
-        return [];
-    }
+        /** A row's right-aligned label; returns the row's vertical centre. */
+        const addRowLabel = (label: string): number => {
+            const y = layout.rowYs[row];
+            row += 1;
+            put(
+                this.add
+                    .text(
+                        layout.labelRightX,
+                        y,
+                        label,
+                        gameTextStyle({ fontSize: metrics.labelFontSize, color: SETTINGS_COLORS.creamCss }),
+                    )
+                    .setOrigin(1, 0.5),
+            );
+            return y;
+        };
 
-    /**
-     * The music track row plus master / music / effects volume sliders. Picking a
-     * track rebuilds this tab (see getSettingsChangeEffect) and the Audio scene
-     * switches to it at once; volumes apply live and, for master and effects,
-     * play a preview sound when released so the new level can be heard.
-     */
-    private renderAudioTab(): Button[] {
-        const { audio } = SettingsStore.get();
+        const chipMetrics = {
+            fontSize: metrics.controlFontSize,
+            paddingX: metrics.chipPaddingX,
+            paddingY: metrics.chipPaddingY,
+            frameStroke: metrics.frameStroke,
+            framePadding: metrics.framePadding,
+        };
+        const addChips = <T extends string>(
+            label: string,
+            values: readonly T[],
+            labelOf: (value: T) => string,
+            current: T,
+            onSelect: (value: T) => void,
+        ): void => {
+            const chips = put(
+                new ChoiceChips<T>(this, layout.controlLeftX, addRowLabel(label), {
+                    options: values.map((value) => ({ value, label: labelOf(value) })),
+                    value: current,
+                    metrics: chipMetrics,
+                    gap: metrics.chipGap,
+                    onSelect,
+                    onHover: focusOnHover,
+                }),
+            );
+            items.push(...chips.items);
+        };
 
-        const trackButtons = this.renderOptionRow(
-            0,
-            t('settings.audio.musicTrack'),
-            MUSIC_TRACK_IDS.map((id, index) => ({ value: id, label: t('settings.audio.track', { number: index + 1 }) })),
-            audio.musicTrack,
-            (musicTrack) => SettingsStore.setAudio({ musicTrack }),
-        );
+        const selectorWidth = metrics.selectorFieldWidth + metrics.arrowSize * 3;
+        const addSelector = <T extends string>(
+            label: string,
+            values: readonly T[],
+            labelOf: (value: T) => string,
+            current: T,
+            onSelect: (value: T) => void,
+        ): void => {
+            const selector = put(
+                new ArrowSelector<T>(this, layout.controlLeftX + selectorWidth / 2, addRowLabel(label), {
+                    options: values.map((value) => ({ value, label: labelOf(value) })),
+                    value: current,
+                    fieldWidth: metrics.selectorFieldWidth,
+                    arrowSize: metrics.arrowSize,
+                    fontSize: metrics.controlFontSize,
+                    frameStroke: metrics.frameStroke,
+                    framePadding: metrics.framePadding,
+                    onSelect,
+                    onHover: focusOnHover,
+                }),
+            );
+            items.push(selector);
+        };
 
+        const sliderCenterX = layout.controlLeftX + metrics.sliderLineWidth / 2 + metrics.sliderHandleSize / 2;
         const previewSound = (): void => emitUiSound('select');
-        const rows = [
-            {
-                label: t('settings.audio.masterVolume'),
-                value: audio.masterVolume,
-                onChange: (masterVolume: number) => SettingsStore.setAudio({ masterVolume }),
-                onCommit: previewSound,
-            },
-            {
-                label: t('settings.audio.musicVolume'),
-                value: audio.musicVolume,
-                onChange: (musicVolume: number) => SettingsStore.setAudio({ musicVolume }),
-            },
-            {
-                label: t('settings.audio.sfxVolume'),
-                value: audio.sfxVolume,
-                onChange: (sfxVolume: number) => SettingsStore.setAudio({ sfxVolume }),
-                onCommit: previewSound,
-            },
-        ];
+        const addSlider = (label: string, value: number, onChange: (value: number) => void, preview: boolean): void => {
+            const slider = put(
+                new LineSlider(this, sliderCenterX, addRowLabel(label), {
+                    value,
+                    lineWidth: metrics.sliderLineWidth,
+                    lineThickness: metrics.sliderLineThickness,
+                    handleSize: metrics.sliderHandleSize,
+                    fontSize: metrics.controlFontSize,
+                    frameStroke: metrics.frameStroke,
+                    framePadding: metrics.framePadding,
+                    valueRightX: layout.controlLeftX + layout.controlWidth - sliderCenterX,
+                    onChange,
+                    onCommit: preview ? previewSound : undefined,
+                    onHover: focusOnHover,
+                }),
+            );
+            items.push(slider);
+        };
 
-        const sliderButtons = rows.flatMap((row, index) => {
-            const slider = new VolumeSlider(this, 0, toDevicePixels(VOLUME_ROWS_TOP + index * VOLUME_ROW_SPACING), row);
-            this.content.add(slider);
-            return [...slider.buttons];
-        });
+        addHeading(t(`settings.sections.${section}`));
 
-        return [...trackButtons, ...sliderButtons];
-    }
+        switch (section) {
+            case 'display':
+                addChips(
+                    t('settings.display.renderQuality'),
+                    RENDER_QUALITIES,
+                    (value) => t(`settings.display.quality.${value}`),
+                    display.renderQuality,
+                    (renderQuality) => SettingsStore.setDisplay({ renderQuality }),
+                );
+                break;
 
-    private renderLanguageTab(): Button[] {
-        return this.renderOptionRow(
-            0,
-            t('settings.language.heading'),
-            LANGUAGES.map((locale) => ({ value: locale, label: LANGUAGE_NATIVE_NAMES[locale] })),
-            SettingsStore.get().language.locale,
-            (locale) => SettingsStore.setLanguage({ locale }),
-        );
-    }
+            case 'language':
+                addSelector(
+                    t('settings.language.heading'),
+                    LANGUAGES,
+                    (locale) => LANGUAGE_NATIVE_NAMES[locale],
+                    language.locale,
+                    (locale) => SettingsStore.setLanguage({ locale }),
+                );
+                break;
 
-    /**
-     * A heading over a centered row of buttons, one per option, with the
-     * current value shown as selected. `top` is the row's vertical offset
-     * (CSS px) within the content container, so several rows can stack.
-     */
-    private renderOptionRow<T extends string>(
-        top: number,
-        headingText: string,
-        options: readonly OptionRowItem<T>[],
-        current: T,
-        onPick: (value: T) => void,
-    ): Button[] {
-        this.content.add(new SectionHeading(this, 0, toDevicePixels(top), { label: headingText }));
+            case 'audio':
+                addSelector(
+                    t('settings.audio.musicTrack'),
+                    MUSIC_TRACK_IDS,
+                    (id) => t('settings.audio.track', { number: MUSIC_TRACK_IDS.indexOf(id) + 1 }),
+                    audio.musicTrack,
+                    (musicTrack) => SettingsStore.setAudio({ musicTrack }),
+                );
+                // Master and effects play a `select` preview on release so the new level can be heard.
+                addSlider(
+                    t('settings.audio.masterVolume'),
+                    audio.masterVolume,
+                    (masterVolume) => SettingsStore.setAudio({ masterVolume }),
+                    true,
+                );
+                addSlider(
+                    t('settings.audio.musicVolume'),
+                    audio.musicVolume,
+                    (musicVolume) => SettingsStore.setAudio({ musicVolume }),
+                    false,
+                );
+                addSlider(
+                    t('settings.audio.sfxVolume'),
+                    audio.sfxVolume,
+                    (sfxVolume) => SettingsStore.setAudio({ sfxVolume }),
+                    true,
+                );
+                break;
 
-        const buttonWidth = toDevicePixels(130);
-        const buttonHeight = toDevicePixels(64);
-        const gap = toDevicePixels(12);
-        const totalWidth = options.length * buttonWidth + (options.length - 1) * gap;
-        const y = toDevicePixels(top + 50);
-
-        let cursorX = -totalWidth / 2 + buttonWidth / 2;
-        const buttons: Button[] = [];
-
-        for (const option of options) {
-            const button = new Button(this, cursorX, y, {
-                label: option.label,
-                width: buttonWidth,
-                height: buttonHeight,
-                selected: option.value === current,
-                onClick: () => onPick(option.value),
-            });
-            this.content.add(button);
-            buttons.push(button);
-            cursorX += buttonWidth + gap;
+            case 'controls': {
+                const y = addRowLabel(t('settings.controls.tester'));
+                const open = put(
+                    new TextButton(this, 0, y, {
+                        label: t('common.open').toLocaleUpperCase(getLanguage()),
+                        fontSize: metrics.controlFontSize,
+                        frameStroke: metrics.frameStroke,
+                        framePadding: metrics.framePadding,
+                        onClick: () => this.scene.start('GamepadTest'),
+                        onHover: focusOnHover,
+                    }),
+                );
+                open.setX(layout.controlLeftX + open.width / 2);
+                items.push(open);
+                break;
+            }
         }
 
-        return buttons;
+        return items;
     }
 }

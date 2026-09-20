@@ -13,12 +13,6 @@ describe('settingsSchema', () => {
         expect(result.display.renderQuality).toBe('medium');
     });
 
-    it('defaults glow quality to low and validates it', () => {
-        expect(settingsSchema.parse({}).display.glowQuality).toBe('low');
-        expect(settingsSchema.parse({ display: { glowQuality: 'high' } }).display.glowQuality).toBe('high');
-        expect(settingsSchema.safeParse({ display: { glowQuality: 'auto' } }).success).toBe(false);
-    });
-
     it('defaults the language to a supported one (system language, else English)', () => {
         expect(LANGUAGES).toContain(settingsSchema.parse({}).language.locale);
     });

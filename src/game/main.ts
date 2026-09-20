@@ -6,12 +6,14 @@ import { MainMenu } from './scenes/MainMenu';
 import { Settings } from './scenes/Settings';
 import { AUTO, Core, Game, Scale } from 'phaser';
 import { Preloader } from './scenes/Preloader';
+import { GamepadTest } from './scenes/GamepadTest';
+import { IS_DEV } from './config/devMode';
 import { createValidatedGameConfig } from './config/gameConfig';
-import { setGlowQuality } from './config/glowQuality';
 import { getPixelRatio, setRenderQuality, toDevicePixels } from './config/pixelRatio';
 import { syncCanvasSize } from './config/canvasSize';
 import { SettingsStore } from './settings/SettingsStore';
 import { applyDisplaySettings } from './settings/applyDisplaySettings';
+import { hasDisplayChanged } from './settings/settingsChange';
 import { EventBus } from './events/EventBus';
 import { setLanguage } from './i18n/i18n';
 import { EVENTS } from './events/GameEvents';
@@ -21,7 +23,6 @@ const StartGame = (parent: string): Game => {
     const { parent: validatedParent, width, height, backgroundColor } = createValidatedGameConfig(parent);
 
     setRenderQuality(SettingsStore.get().display.renderQuality);
-    setGlowQuality(SettingsStore.get().display.glowQuality);
     setLanguage(SettingsStore.get().language.locale);
     const pixelRatio = getPixelRatio();
 
@@ -44,7 +45,8 @@ const StartGame = (parent: string): Game => {
             zoom: 1 / pixelRatio,
             autoCenter: Scale.CENTER_BOTH,
         },
-        scene: [Boot, Audio, Preloader, MainMenu, MainGame, GameOver, Settings],
+        // GamepadTest is a DEV-only screen, left out of production builds.
+        scene: [Boot, Audio, Preloader, MainMenu, MainGame, GameOver, Settings, ...(IS_DEV ? [GamepadTest] : [])],
     };
 
     const game = new Game(config);
@@ -53,9 +55,16 @@ const StartGame = (parent: string): Game => {
         syncCanvasSize(game);
     };
 
+    // Re-fit the canvas only when the display settings actually changed: doing it for every
+    // setting (a volume slider being dragged, say) makes Phaser emit a resize each time.
+    let previousDisplay = SettingsStore.get().display;
     const onSettingsChanged = (settings: GameSettings): void => {
         setLanguage(settings.language.locale);
-        applyDisplaySettings(game, settings.display);
+
+        if (hasDisplayChanged(previousDisplay, settings.display)) {
+            applyDisplaySettings(game, settings.display);
+        }
+        previousDisplay = settings.display;
     };
 
     window.addEventListener('resize', onWindowResize);

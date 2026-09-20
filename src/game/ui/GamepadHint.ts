@@ -1,6 +1,7 @@
 import { GameObjects, Scene } from 'phaser';
 import { toDevicePixels } from '../config/pixelRatio';
 import { GAMEPAD_ATLAS_KEY, type GamepadFrame } from './gamepadPrompts';
+import { gameTextStyle } from './textStyle';
 
 const ICON_HEIGHT_CSS = 30;
 const CAPTION_GAP_CSS = 8;
@@ -21,13 +22,17 @@ export class GamepadHint extends GameObjects.Container {
 
         this.icon = scene.add.image(0, 0, GAMEPAD_ATLAS_KEY).setOrigin(0, 0.5);
         this.caption = scene.add
-            .text(0, 0, '', {
-                fontFamily: 'Arial',
-                fontSize: toDevicePixels(18),
-                color: '#ffffff',
-                stroke: '#3b2410',
-                strokeThickness: toDevicePixels(3),
-            })
+            .text(
+                0,
+                0,
+                '',
+                gameTextStyle({
+                    fontSize: toDevicePixels(18),
+                    color: '#ffffff',
+                    stroke: '#1a1210',
+                    strokeThickness: toDevicePixels(3),
+                }),
+            )
             .setOrigin(0, 0.5);
 
         this.add([this.icon, this.caption]);

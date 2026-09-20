@@ -2,7 +2,8 @@ import type { Translation } from './en';
 
 export const ru: Translation = {
     common: {
-        back: '< Назад',
+        back: 'Назад',
+        open: 'Открыть',
     },
     hints: {
         confirm: 'Выбрать',
@@ -14,14 +15,13 @@ export const ru: Translation = {
     },
     settings: {
         title: 'Настройки',
-        tabs: {
+        sections: {
             display: 'Экран',
-            controls: 'Управление',
             language: 'Язык',
             audio: 'Аудио',
+            controls: 'Управление',
         },
         display: {
-            glowQuality: 'Качество свечения',
             renderQuality: 'Качество рендера',
             quality: {
                 auto: 'Авто',
@@ -34,6 +34,7 @@ export const ru: Translation = {
             heading: 'Язык',
         },
         controls: {
+            tester: 'Проверка геймпада',
             noGamepad: 'Подключите геймпад и нажмите любую кнопку',
             rawButtons: 'Кнопки и оси как есть',
             rawLayout: 'Кнопки и оси как есть (раскладка не распознана)',

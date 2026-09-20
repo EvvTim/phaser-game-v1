@@ -3,7 +3,7 @@ import { emitUiSound } from '../audio/emitUiSound';
 import type { UiSoundKind } from '../audio/uiSounds';
 import type { NavigableItem } from '../input/NavigableItem';
 import type { MenuItemState } from './mainMenuLayout';
-import { MENU_FONT_STACK, MENU_FONT_WEIGHT } from './menuFont';
+import { GAME_FONT_STACK, GAME_FONT_WEIGHT } from './gameFont';
 import { ensureMenuItemTexture, type MenuItemSkin } from './menuItemTextures';
 
 export interface MenuItemConfig {
@@ -53,8 +53,8 @@ export class MenuItem extends GameObjects.Container implements NavigableItem {
 
         this.label = scene.add
             .text(0, 0, config.label, {
-                fontFamily: MENU_FONT_STACK,
-                fontStyle: MENU_FONT_WEIGHT,
+                fontFamily: GAME_FONT_STACK,
+                fontStyle: GAME_FONT_WEIGHT,
             })
             .setOrigin(0, 0.5);
 

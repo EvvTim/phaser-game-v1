@@ -26,7 +26,8 @@ export interface GamepadNavigatorOptions {
  * Drives gamepad-only UI navigation: the D-pad (button- or hat-axis-based,
  * see gamepadMapping.ts) moves focus to the nearest registered item (Button, MenuItem, ...) in
  * that direction on screen (see spatialNavigation.ts), the mapped confirm
- * button activates the focused one, the mapped back button (if a callback
+ * button activates the focused one (an item can also claim a direction for
+ * itself through `handleDirection`), the mapped back button (if a callback
  * is set) fires it, and the shoulder buttons (if callbacks are set) fire
  * independently of focus — e.g. L/R jumping between tabs directly.
  *
@@ -186,6 +187,11 @@ export class GamepadNavigator {
 
     private moveFocus(direction: Direction): void {
         if (this.items.length === 0) {
+            return;
+        }
+
+        // The focused item may use the direction itself (e.g. a slider's left/right).
+        if (this.items[this.focusIndex]?.handleDirection?.(direction)) {
             return;
         }
 

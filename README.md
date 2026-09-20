@@ -35,7 +35,7 @@ src/game/factories/     Object-pool factories (Phaser.GameObjects.Group wrappers
 src/game/i18n/          i18next setup, supported languages, RU/UA/EN/PL translations
 src/game/input/         Input helpers built on Phaser's native input plugins (gamepad, etc.)
 src/game/settings/      Persisted settings: Zod schema, localStorage-backed SettingsStore
-src/game/ui/            Reusable UI primitives (Button, TabBar, Title, SectionHeading, MenuItem) for menu/settings screens
+src/game/ui/            Reusable UI: MenuItem (main menu), the settings controls (ChoiceChips, ArrowSelector, LineSlider, TextButton), layouts, font
 src/game/scenes/        Boot -> Preloader -> MainMenu -> Game -> GameOver, MainMenu -> Settings -> MainMenu
 ```
 
@@ -60,24 +60,30 @@ Gamepad support uses Phaser's built-in `Input.Gamepad` plugin (enabled via
   Switch 2 Pro Controller (D-pad is a single hat-style axis, not 4 buttons);
   add another as new non-standard controllers turn up.
 - `src/game/input/GamepadNavigator.ts` — one per scene; give it the
-  navigable items (`Button`, `MenuItem`, anything implementing
-  `input/NavigableItem.ts`) via `setItems()` (rebuild it whenever that set
-  changes, e.g. Settings on tab switch; the first item gets focus). The D-pad
-  moves focus to the nearest button in that direction on screen
-  (`input/spatialNavigation.ts` — no wrap-around; sideways moves stay in
-  their row, up/down can always reach the next row), confirm activates,
-  back fires `onBack`. Focus is shown via `Button.setFocused()` (a cyan Glow
-  filter, independent of the `selected` tint so both can show at once).
+  navigable items (`MenuItem`, `ChoiceChip`, `ArrowSelector`, `LineSlider`,
+  `TextButton` — anything implementing `input/NavigableItem.ts`) via
+  `setItems()` (rebuild it whenever that set changes, e.g. Settings on a tab
+  switch; the first item gets focus). The D-pad moves focus to the nearest
+  item in that direction on screen (`input/spatialNavigation.ts` — no
+  wrap-around; sideways moves stay in their row, up/down can always reach the
+  next row), confirm activates, back fires `onBack`. A focused item can claim
+  a direction for itself through the optional `handleDirection()`: a slider
+  takes left/right to change its value and an arrow selector to cycle, while
+  up/down still move focus. `focusItem()` moves focus to an item directly
+  (mouse hover), so the pointer and the pad share one highlight. In the
+  settings the focused control gets a plain thin cream frame
+  (`ui/FocusFrame.ts`, no effects); the main menu's highlighted plate is its
+  own design.
   Shoulder buttons (`onShoulderLeft`/`onShoulderRight`) fire independently of
   focus — Settings uses them to switch tabs, and deliberately does NOT
-  register the tab buttons with the navigator, so tabs change only via L/R
-  (or a click), and focus then lands on the section's first interactive
-  element. `onGamepadStatusChange` reports the first
-  connected pad's mapping (or `null`) — Settings uses it to show/hide the
-  `ui/GamepadHint.ts` prompts (L/R beside the tab bar, confirm/back in the
-  footer) only while a gamepad is actually connected, with icons chosen for
-  that mapping's `family` via `ui/gamepadPrompts.ts` (PlayStation shows
-  Cross/Circle, Nintendo shows L/R, the rest L1/R1 and A/B).
+  register the tab chips with the navigator, so tabs change only via L/R (or a
+  click), and focus then lands on the section's first control.
+  `onGamepadStatusChange` reports the first connected pad's mapping (or
+  `null`) — Settings uses it to show/hide the `ui/GamepadHint.ts` prompts (L/R
+  beside the tab row, confirm/back in the corner) only while a gamepad is
+  actually connected, with icons chosen for that mapping's `family` via
+  `ui/gamepadPrompts.ts` (PlayStation shows Cross/Circle, Nintendo shows L/R,
+  the rest L1/R1 and A/B).
   Remember to remove any `pad.on('down', ...)` / plugin listener you add
   elsewhere on scene shutdown — the physical device's Gamepad wrapper
   outlives any one scene, so an un-removed listener leaks and keeps firing
@@ -137,7 +143,7 @@ UI text uses [i18next](https://www.i18next.com) with four languages: Russian
 
 ## Main menu
 
-A full-screen artwork (`public/assets/ui/main-menu-bg.jpg`, key
+A full-screen artwork (`public/assets/ui/main-menu-bg2.png`, key
 `MAIN_MENU_BG_KEY`) with a list of options at the bottom-left, laid out after
 the mock-up in `examples/main-menu-example.png`. For now there are two options:
 Play (-> `Game`) and Settings (-> `Settings`); add an entry in `getEntries()`
@@ -150,6 +156,22 @@ in `scenes/MainMenu.ts` and the list grows upward.
   flip is safe; drop it if the artwork is replaced by one composed for the menu.
   The scene restarts on `Scale.Events.RESIZE` so the background and the item
   textures follow the window size.
+- **Background effects** (`ui/mainMenuEffects.ts`, main menu only). The artwork
+  is a small picture that was scaled up (4224 px wide, but with halos, posterized
+  patches and soft detail that show at full size and on HiDPI screens), so instead
+  of pretending it is sharp the menu gives it a soft-focus, filmic look and puts
+  crisp small things in front of it: a very light blur and a vignette (Phaser 4's
+  native `filters.external.addBlur` / `addVignette`), a film-grain overlay (a
+  256 px zero-mean noise tile drawn into a canvas texture at startup and tiled by
+  a `TileSprite` whose offset jumps ~12x a second) and sparse drifting star dust
+  (a native `ParticleEmitter`, additive, capped by `maxAliveParticles`). There are
+  no image assets; the tuning constants (`BLUR`, `VIGNETTE`, `GRAIN_*`, the dust)
+  are at the top of the file. The filters and the dust cost fill-rate, so they
+  follow Settings -> Display -> Render quality (`getMenuEffects()` in
+  `ui/mainMenuEffectsConfig.ts`, tested): at Low only the grain stays, at Medium
+  the dust is thinner. The camera background is set to black there so the blur
+  doesn't show the game's blue as a rim at the window edge. The settings screens
+  reuse the same artwork but without these effects (blurred and darkened instead).
 - The scenery beside the characters is darkened so they stand out
   (`computeSideShade()` in `ui/mainMenuLayout.ts`): a left-to-centre
   gradient that fades out where the characters begin (`CHARACTERS_LEFT_SHARE`,
@@ -187,7 +209,7 @@ a different track). Settings -> Audio picks which one plays
   never stopped. It has to be its own scene because Phaser cancels a scene's
   loads when it shuts down, and the music must keep loading/playing across
   menu scenes. Other scenes don't call it: they emit `EVENTS.MUSIC_MENU_START`
-  (`MainMenu`, `Settings`) or `EVENTS.MUSIC_STOP` (`Game` — there is no
+  (`MainMenu`, `Settings`, `GamepadTest`) or `EVENTS.MUSIC_STOP` (`Game` — there is no
   gameplay music yet), and it also follows `SETTINGS_CHANGED`. Tracks loop and
   fade in/out with native tweens.
 - **Only the chosen track is decoded.** A decoded track is ~70-90 MB of PCM, so
@@ -208,65 +230,101 @@ a different track). Settings -> Audio picks which one plays
   queued sounds at the first click). The four sounds are loaded by the
   Preloader. Where they fire:
   `navigate` — `GamepadNavigator` when focus actually moves (D-pad and mouse
-  hover) and a Settings tab switch; `select` — any `Button` / `MenuItem`
-  activation (a `sound` option changes or silences it: `TabBar` buttons and the
-  volume -/+ buttons are silent, `Settings` plays the tab sound itself);
-  `confirm` — Play; `back` — the Back button and the pad's back button. A
-  volume change from the master or effects row plays a `select` preview on
-  release.
+  hover) and a Settings tab switch (the tab chips and L / R play it); `select`
+  — any `MenuItem`, option chip, arrow-selector step or text button (a `sound`
+  option changes or silences it); `confirm` — Play; `back` — the Back button
+  and the pad's back button. Releasing the master or effects slider plays a
+  `select` preview so the new level can be heard.
 - `decideMusicAction()` in `audio/musicTracks.ts` is the pure "stop / play / load /
   nothing" decision, unit-tested; tweak volume and fades there (`MUSIC_VOLUME`,
   `MUSIC_FADE_*`).
 - Browsers block audio until the first click/key; Phaser's SoundManager queues the
   play and starts it on that first interaction, so nothing special is needed.
 - **Adding a track:** drop the file in `public/assets/music/`, add an id to
-  `MUSIC_TRACK_IDS` and its file to `TRACK_FILES`; the Settings row builds its
-  buttons ("Track N") from `MUSIC_TRACK_IDS`, so keep the row to ~4 buttons or
-  give it a second row. Opus-in-MP4 plays in current Chrome, Edge and Firefox
+  `MUSIC_TRACK_IDS` and its file to `TRACK_FILES`; the Audio tab's arrow selector
+  builds its entries ("Track N") from `MUSIC_TRACK_IDS`, so any number works. Opus-in-MP4 plays in current Chrome, Edge and Firefox
   (Safari support is newer); add an `.ogg`/`.mp3` alternative if an older
   browser matters.
 
 ## Settings screen
 
-Reachable from MainMenu -> Settings. Tabs: Display, Controls, Language,
-Audio — all four are implemented (Audio picks the menu music, see Audio
-below). **Controls is DEV-only**: it's shown
-only under `bun run dev` (`IS_DEV` in `game/config/devMode.ts`, i.e.
-`import.meta.env.DEV`), and production builds omit the tab and drop the tester
-code from the bundle. Which tabs exist is decided by `getVisibleTabs()` in
-`settings/settingsTabs.ts`; `resolveActiveTab()` keeps a scene restart from
-landing on a hidden tab. Anything else that must be DEV-only should read
-`IS_DEV` too.
+Reachable from MainMenu -> Settings, styled after
+`examples/settings-menu-example.png`: over the main menu artwork, blurred and
+darkened (`ui/settingsBackdrop.ts`), cream ink, dotted vertical lines running in
+from the top and bottom edges, thin rules around the title and around the
+bottom action. It has the title, a
+row of section **tabs** — Display, Language, Audio and (DEV only) Controls —
+and, under it, the active section: its heading (`—— AUDIO ——`) and its
+`label  control` rows. Click a tab or use the gamepad's **L / R** shoulders to
+switch (tabs are deliberately not D-pad targets). Every setting applies at once
+and is saved automatically, so the action at the bottom is just **Back** (the
+example's "Save settings" and "Requires restart" have nothing to do here).
 
-The **Controls** tab is a live gamepad tester (`src/game/ui/GamepadTester.ts`)
-for checking that every button of a connected controller works — browsers
-only expose a pad after its first button press, so it asks for one. A pad the
-browser maps as `standard` gets a controller-shaped diagram of that brand's
-prompt icons (`ui/gamepadLayout.ts` holds the positions): pressed buttons
-turn yellow and inverted, the D-pad shows its direction, sticks show
-deflection and click. Any other pad gets a raw grid of every button index
-plus live axis values — the tool for working out an unknown device's layout
-(names are shown only for mappings measured on real hardware, i.e.
-`GamepadMapping.measured`; otherwise plain `#index`, since guessed names
-would mislead). The platform Guide/Home button has no artwork (the pack's
-license excludes Guide buttons), so it's a text chip.
+| Section | Rows |
+|---|---|
+| Display | Render quality (Auto / High / Medium / Low) |
+| Language | Language (`ru` / `uk` / `en` / `pl`, shown in their own names) |
+| Audio | Music track, Master / Music / Effects volume |
+| Controls (DEV) | Gamepad test -> Open |
 
-- The Audio tab has the music track row and three volume rows built from
-  `ui/VolumeSlider.ts`: label, `-`, the UI kit's segmented wood bar (an empty
-  frame with the full one cropped over it, so it fills smoothly), `+`, and the
-  percent. Click or drag the bar (snaps to 5%; the drag keeps working outside
-  the bar) or use `-`/`+` (10% steps) — those are plain `Button`s, so the D-pad
-  focuses them (`slider.buttons` goes to `GamepadNavigator#setItems`). The panel
-  is taller on this tab (`PANEL_HEIGHTS` in `scenes/Settings.ts`).
-- The Settings scene no longer restarts on every change:
-  `getSettingsChangeEffect()` (`settings/settingsChange.ts`, tested) says
-  `restart` for render/glow quality and language, `rerender` (just the current
-  tab) for the music track, and `none` for volumes — rebuilding a slider while it
-  is being dragged would end the drag. Add any new setting that a control
-  updates in place to that function's `none` case.
+- **Backdrop.** `ui/mainMenuBackground.ts` places the artwork (cover-fitted,
+  top-pinned) for both the main menu and the settings, so it has exactly the same
+  position and size on both; `ui/settingsBackdrop.ts` only blurs it with Phaser 4's
+  native `filters.external.addBlur` (`BLUR`) and covers it with a black layer
+  (`DARKNESS`) — tune those two constants there, and never scale or move the image
+  in it. The blur is a filter, so it is redrawn each frame: one full-screen blur,
+  the only filter in the game. Without WebGL the artwork is just darkened.
+- **Layout** is pure math in `ui/settingsLayout.ts` (`computeSettingsLayout()`,
+  tested): designed on 1920x1080 and scaled uniformly (also down to fit a
+  narrow or short window), sized for the tallest section so the title, tabs and
+  Back don't jump when switching. `ui/settingsDecor.ts` draws the dotted lines
+  and rules with one `Graphics`; colours are in `ui/settingsTheme.ts` (sampled
+  from the example).
+- **Controls** are reusable containers configured by objects validated with
+  Zod, all `NavigableItem`s and all updating themselves in place:
+  `ChoiceChips` (a row of text options, the selected one on a cream plate; also
+  the tab row), `ArrowSelector` (`◀ value ▶`, cycles and wraps; click an arrow,
+  or D-pad left/right, confirm = next), `LineSlider` (a thin line with a square
+  handle and the percent: click or drag — snaps to 5%, the drag keeps working
+  outside the line — or D-pad left/right for 10% steps), and `TextButton`.
+  Their focus marker is a plain thin frame (`ui/FocusFrame.ts`), also shown on
+  mouse hover.
+- **Font:** every Text in the game uses Exo 2 SemiBold through `gameTextStyle()`
+  (`ui/textStyle.ts`); see Assets. Headings, tabs and labels are upper-cased
+  in code with the current language's rules, not in translations.
+- **When the scene rebuilds.** `getSettingsChangeEffect()`
+  (`settings/settingsChange.ts`, tested) says `restart` for render quality and
+  language (they change how the UI is built) and `none` for everything else — the
+  control that made the change already shows it, and rebuilding a slider while it
+  is dragged would end the drag. Add any new setting that a control updates in
+  place to its `none` case. `main.ts` only re-fits the canvas when the display
+  settings really changed (`hasDisplayChanged()`), and scenes rebuild on a
+  window resize only if the size actually changed (`ui/restartSceneOnResize.ts`) —
+  Phaser also emits `resize` when nothing changed, which used to restart the
+  page on every setting change.
+- **DEV-only Controls section.** It is shown only under `bun run dev` (`IS_DEV`
+  in `game/config/devMode.ts`, i.e. `import.meta.env.DEV`); production builds omit
+  the tab and the `GamepadTest` scene, so the tester is dropped from the bundle.
+  Which sections exist is `getVisibleSections()` in `settings/settingsSections.ts`
+  (tested, with `resolveSection()` and the L / R `stepSection()`). Anything else
+  that must be DEV-only should read `IS_DEV` too.
+
+The **Gamepad test** (`scenes/GamepadTest.ts`, using `ui/GamepadTester.ts`) is a
+live tester for checking that every button of a connected controller works —
+browsers only expose a pad after its first button press, so it asks for one. A
+pad the browser maps as `standard` gets a controller-shaped diagram of that
+brand's prompt icons (`ui/gamepadLayout.ts` holds the positions): pressed
+buttons turn yellow and inverted, the D-pad shows its direction, sticks show
+deflection and click. Any other pad gets a raw grid of every button index plus
+live axis values — the tool for working out an unknown device's layout (names are
+shown only for mappings measured on real hardware, i.e. `GamepadMapping.measured`;
+otherwise plain `#index`, since guessed names would mislead). The platform
+Guide/Home button has no artwork (the pack's license excludes Guide buttons), so
+it's a text chip.
+
 - `src/game/settings/settingsSchema.ts` — Zod schema for the persisted shape.
   Extend this (with a default for every new field, so old saved data still
-  parses) as each tab gets real settings.
+  parses) as each section gets real settings.
 - `src/game/settings/settingsStorage.ts` — the pure load/save functions
   (validated through the schema; corrupt or unavailable storage falls back to
   defaults) — kept free of Phaser so they're unit-tested.
@@ -275,41 +333,16 @@ license excludes Guide buttons), so it's a text chip.
   `EVENTS.SETTINGS_CHANGED` on the shared `EventBus` on every change, rather
   than any screen reaching into another. Saved settings are per browser
   origin — a different dev-server port is a different origin.
-- The Display tab has two rows. "Render quality" (Auto/High/Medium/Low) scales
-  `getPixelRatio()` in `game/config/pixelRatio.ts` — see `QUALITY_SCALE` —
-  trading HiDPI sharpness for fill-rate. Changing it live re-applies the
-  canvas resize/zoom (`settings/applyDisplaySettings.ts`) and restarts the
-  Settings scene so its own UI re-renders at the new ratio.
-- "Glow quality" (High/Medium/Low, default Low) sets how expensive the Glow
-  filters on buttons are (`game/config/glowQuality.ts`): Phaser's Glow shader
-  samples `distance × quality` times per pixel and those are fixed when the
-  filter is created, so a change applies to buttons created afterwards (the
-  Settings scene restarts, so it takes effect immediately there).
-- The Language tab lists the four languages; see Localization above.
-- `src/game/ui/Button.ts` and `TabBar.ts` are plain `GameObjects.Container`
-  components that don't self-register — call `scene.add.existing(...)` (or
-  `container.add(...)` to nest one) after constructing them.
-- `Button` sizes itself like a CSS box: pass explicit `width`/`height`, or
-  omit either to size it from the label + `padding` instead (a number, an
-  `{ x, y }` pair, or individual sides — see `ui/padding.ts`). Asymmetric
-  padding shifts the label off-center within a fixed size, same as CSS.
-  `TabBar` uses this to size each tab to its own label instead of a single
-  fixed width that would overflow for longer ones.
-- `Button` supports two independent glows: `setFocused()` (cyan, gamepad
-  focus) and the `selectedGlow` option (yellow, while `selected` — `TabBar`
-  turns it on so the active tab stands out).
-- `src/game/ui/SectionHeading.ts` is the title over a group of options
-  (e.g. "Render quality"): white text on a semi-transparent dark rounded
-  background, auto-sized to its label. Decorative only.
-- `src/game/ui/Title.ts` is a screen header: a `banner_hex` background with
-  a centered label, same CSS-box sizing/padding as `Button` (they share the
-  sizing math via `ui/boxLayout.ts`) but not interactive. It's meant to sit
-  above a screen's content panel with its own background — see how
-  `Settings` positions it before the panel, not inside it.
+- **Render quality** (Auto/High/Medium/Low) scales `getPixelRatio()` in
+  `game/config/pixelRatio.ts` — see `QUALITY_SCALE` — trading HiDPI sharpness
+  for fill-rate. Changing it live re-applies the canvas resize/zoom
+  (`settings/applyDisplaySettings.ts`) and rebuilds the scene so its UI re-renders
+  at the new ratio.
+- **Language:** see Localization above.
 
 ## Assets
 
-The main menu font is [Exo 2](https://fonts.google.com/specimen/Exo+2)
+The game font is [Exo 2](https://fonts.google.com/specimen/Exo+2)
 SemiBold (SIL Open Font License; text in `public/assets/fonts/OFL-Exo2.txt`),
 a static 600-weight instance subset to Latin, Latin Extended-A and Cyrillic so
 all four languages render — `public/assets/fonts/Exo2-SemiBold.woff2`. It was
@@ -321,8 +354,10 @@ scored marginally higher but are Latin-only; Play scored clearly lower). Font
 size and letter spacing in `ui/mainMenuLayout.ts` are fitted to the mock-up's
 measured word widths.
 Phaser Text draws to a canvas, so the font must be loaded before the first
-Text using it exists: `Preloader` awaits `loadMenuFont()` (`ui/menuFont.ts`)
-before starting `MainMenu`. Use `MENU_FONT_STACK` for Text in that style.
+Text using it exists: `Preloader` awaits `loadGameFont()` (`ui/gameFont.ts`)
+before starting `MainMenu`. It is the font of every Text in the game — create
+them with `gameTextStyle({ ... })` (`ui/textStyle.ts`), never with a raw
+`fontFamily`.
 
 Button-prompt icons come from [Gamepad Prompt Asset Pack](https://github.com/AL2009man/Gamepad-Prompt-Asset-Pack)
 by AL2009man (MIT; license in `public/assets/gamepad/`) — see
@@ -348,25 +383,10 @@ Other CC0 candidates in the same pack (and in Kenney's UI Audio pack,
 `select_001`/`004`, `confirmation_001`, `toggle_001`, `back_004`,
 `rollover1-6`. To swap one, re-encode it to `.ogg` + `.m4a` with the same name.
 
+The main menu artwork is `public/assets/ui/` (key `MAIN_MENU_BG_KEY`, file named in
+`Preloader`); the settings screens reuse it, blurred, and have no image assets of
+their own — everything else on them is drawn with `Graphics` and Text.
+
 Static files (audio, spritesheets, etc.) go in `public/assets` and are
 loaded via `this.load.image('key', 'assets/file.png')`. Imported/bundled
 assets can instead be `import`-ed directly into a scene module.
-
-### UI kit atlas
-
-`public/assets/ui/menu-atlas.{png,json}` is a texture atlas (one shared
-texture, per CLAUDE.md's asset-reuse rule) of a wood/green cartoon UI kit —
-panels, buttons, bars, icon buttons. Loaded once in `Preloader`, referenced
-everywhere via `UI_ATLAS_KEY` / `UI_FRAMES` in `src/game/ui/uiAtlas.ts`
-rather than string literals.
-
-- `Button` and the Settings panel background use Phaser's native
-  `GameObjects.NineSlice` (`this.add.nineslice`) so the wood border stays
-  crisp while the middle stretches to fit — the slice metrics
-  (`ui/Button.ts`'s `SLICE`, `ui/panelSlice.ts`) are tuned for how large
-  each element actually renders in-game, not the raw source art
-  proportions; a NineSlice border is an absolute pixel size, so it doesn't
-  auto-scale down for a small button.
-- The atlas is generated from a raw, unsliced sprite sheet — see
-  `art-source/ui/README.md` for the extraction pipeline (only the source
-  art and scripts live there; it's never shipped, unlike the atlas).

@@ -22,7 +22,8 @@ import {
     type GamepadFrame,
     type PromptRole,
 } from './gamepadPrompts';
-import { SectionHeading } from './SectionHeading';
+import { SETTINGS_COLORS } from './settingsTheme';
+import { gameTextStyle } from './textStyle';
 
 type Gamepad = Input.Gamepad.Gamepad;
 
@@ -44,7 +45,7 @@ const DIAGRAM_TOP_CSS = 48;
 const MAX_NAME_LENGTH = 44;
 
 /**
- * A live gamepad test panel for the Settings "Controls" tab: shows the first
+ * A live gamepad test panel (the DEV-only `GamepadTest` scene): shows the first
  * connected controller and lights up every button as it's pressed, so a
  * player (or you, debugging a new device) can verify all of them work.
  *
@@ -103,7 +104,7 @@ export class GamepadTester extends GameObjects.Container {
 
         const mapping = detectGamepadMapping(pad.id, pad.pad.mapping);
         const name = getControllerDisplayName(pad.id).slice(0, MAX_NAME_LENGTH);
-        this.add(new SectionHeading(this.scene, 0, toDevicePixels(HEADING_Y_CSS), { label: name }));
+        this.add(this.createText(0, toDevicePixels(HEADING_Y_CSS), name, 18, SETTINGS_COLORS.creamCss));
 
         if (pad.pad.mapping === 'standard') {
             this.buildStandardDiagram(mapping.family, mapping);
@@ -270,17 +271,13 @@ export class GamepadTester extends GameObjects.Container {
             }
             pressed = now;
             box.setFillStyle(now ? PRESSED_FILL : IDLE_FILL, now ? 0.9 : IDLE_FILL_ALPHA);
-            text.setColor(now ? '#3b2410' : '#ffffff');
+            text.setColor(now ? SETTINGS_COLORS.darkCss : '#ffffff');
         });
     }
 
     private createText(x: number, y: number, content: string, sizeCss: number, color: string): GameObjects.Text {
         return this.scene.add
-            .text(x, y, content, {
-                fontFamily: 'Arial',
-                fontSize: toDevicePixels(sizeCss),
-                color,
-            })
+            .text(x, y, content, gameTextStyle({ fontSize: toDevicePixels(sizeCss), color }))
             .setOrigin(0.5);
     }
 }

@@ -6,13 +6,11 @@ import {
     DEFAULT_SFX_VOLUME,
     volumePercentSchema,
 } from '../audio/volume';
-import { DEFAULT_GLOW_QUALITY, GLOW_QUALITIES } from '../config/glowQuality';
 import { RENDER_QUALITIES } from '../config/pixelRatio';
 import { LANGUAGES, detectSystemLanguage } from '../i18n/languages';
 
 export const displaySettingsSchema = z.object({
     renderQuality: z.enum(RENDER_QUALITIES).default('auto'),
-    glowQuality: z.enum(GLOW_QUALITIES).default(DEFAULT_GLOW_QUALITY),
 });
 export type DisplaySettings = z.infer<typeof displaySettingsSchema>;
 

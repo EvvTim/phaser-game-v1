@@ -8,7 +8,8 @@ type DeepString<T> = { [K in keyof T]: T[K] extends string ? string : DeepString
  */
 export const en = {
     common: {
-        back: '< Back',
+        back: 'Back',
+        open: 'Open',
     },
     hints: {
         confirm: 'Select',
@@ -20,14 +21,13 @@ export const en = {
     },
     settings: {
         title: 'Settings',
-        tabs: {
+        sections: {
             display: 'Display',
-            controls: 'Controls',
             language: 'Language',
             audio: 'Audio',
+            controls: 'Controls',
         },
         display: {
-            glowQuality: 'Glow quality',
             renderQuality: 'Render quality',
             quality: {
                 auto: 'Auto',
@@ -40,6 +40,7 @@ export const en = {
             heading: 'Language',
         },
         controls: {
+            tester: 'Gamepad test',
             noGamepad: 'Connect a controller and press any button',
             rawButtons: 'Raw buttons and axes',
             rawLayout: 'Raw buttons and axes (layout not recognized)',

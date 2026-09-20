@@ -5,8 +5,7 @@ import { toDevicePixels } from '../config/pixelRatio';
 import { SettingsStore } from '../settings/SettingsStore';
 import { GAMEPAD_ATLAS_KEY } from '../ui/gamepadPrompts';
 import { MAIN_MENU_BG_KEY } from '../ui/mainMenuLayout';
-import { loadMenuFont } from '../ui/menuFont';
-import { UI_ATLAS_KEY } from '../ui/uiAtlas';
+import { loadGameFont } from '../ui/gameFont';
 
 /**
  * Loads all assets needed by the rest of the game, with a visible
@@ -34,8 +33,7 @@ export class Preloader extends Scene {
 
     preload(): void {
         this.load.setPath('assets');
-        this.load.image(MAIN_MENU_BG_KEY, 'ui/main-menu-bg.png');
-        this.load.atlas(UI_ATLAS_KEY, 'ui/menu-atlas.png', 'ui/menu-atlas.json');
+        this.load.image(MAIN_MENU_BG_KEY, 'ui/main-menu-bg2.png');
         this.load.atlas(GAMEPAD_ATLAS_KEY, 'gamepad/prompts-atlas.png', 'gamepad/prompts-atlas.json');
         queueUiSounds(this.load);
         // Only the chosen track (a decoded one is ~70-90 MB); the Audio scene loads others on demand.
@@ -45,6 +43,6 @@ export class Preloader extends Scene {
     create(): void {
         // Phaser Text is drawn to a canvas, so the menu font has to be
         // ready before the first scene that uses it is created.
-        void loadMenuFont().then(() => this.scene.start('MainMenu'));
+        void loadGameFont().then(() => this.scene.start('MainMenu'));
     }
 }

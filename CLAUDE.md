@@ -41,18 +41,21 @@
 - Default language: the system/browser language if supported, otherwise English. An explicit choice is persisted with the other settings.
 - Text is read when a scene is created, so a language change must restart/re-render the scene (the Settings scene already does this on `SETTINGS_CHANGED`).
 
-### 5. Settings
+### 5. Text & font
+- **One font for the whole game:** Exo 2 SemiBold (`ui/gameFont.ts`, license in `public/assets/fonts/`). Create every Text with `gameTextStyle({ ... })` (`ui/textStyle.ts`) — never a raw `fontFamily: 'Arial'` — so all four languages (incl. Cyrillic) match. The font is loaded in `Preloader` before any scene that draws text.
+
+### 6. Settings
 - Persisted settings live in `src/game/settings/`: Zod schema (`settingsSchema.ts`, every field needs a default), storage (`settingsStorage.ts`), and `SettingsStore` (emits `EVENTS.SETTINGS_CHANGED`).
 - **Audio:** menu music and UI sound effects are owned by the persistent `Audio` scene (`scenes/Audio.ts`); scenes and components drive it only through events — `EVENTS.MUSIC_MENU_START` / `EVENTS.MUSIC_STOP`, and `emitUiSound(kind)` (`EVENTS.UI_SOUND`) for effects — never by referencing it. Decode only the selected track (~70-90 MB each). Volumes (master / music / effects) are percents in `settings.audio`, applied live; a control that updates a setting in place (a slider) must return `none` from `getSettingsChangeEffect()` so the Settings scene isn't rebuilt under it. See `audio/` and README.
 - **Adding a setting:** schema field + default → `SettingsStore` setter (if new section) → apply it at startup and on change in `game/main.ts` (display settings via `applyDisplaySettings`) → UI in the Settings scene → i18n keys in all 4 locales → tests.
 
-### 6. Gamepad UI
+### 7. Gamepad UI
 - **Controller support:** identify a pad's brand through `detectControllerFamily()` (`input/gamepadMapping.ts`) — never hardcode Xbox assumptions. New non-standard hardware gets an empirically measured entry (use `gamepadLogger.ts`), not a guessed one. Confirm/back follow the brand's own convention (Nintendo: right face button confirms).
-- **Gamepad tester:** Settings -> Controls (`ui/GamepadTester.ts`) is **DEV-only** — the tab is hidden and the code dropped from production builds via `IS_DEV` (`config/devMode.ts`); tab visibility lives in `settings/settingsTabs.ts`. Guard any new dev-only tool the same way. It must keep covering every standard button (0-16) — `ui/gamepadLayout.ts` has a test for it. For a non-standard pad show raw `#index` chips, and only trust `buttonLabels` when the mapping is `measured`.
+- **Gamepad tester:** Settings -> Controls -> Gamepad test (`ui/GamepadTester.ts`, shown by the `GamepadTest` scene) is **DEV-only** — the tab is hidden and the scene/code dropped from production builds via `IS_DEV` (`config/devMode.ts`); section visibility lives in `settings/settingsSections.ts`. Guard any new dev-only tool the same way. It must keep covering every standard button (0-16) — `ui/gamepadLayout.ts` has a test for it. For a non-standard pad show raw `#index` chips, and only trust `buttonLabels` when the mapping is `measured`.
 - **Prompts:** show button icons via `GamepadHint` + `getPromptFrame(family, role)` (`ui/gamepadPrompts.ts`) so they match the connected controller; icons come from AL2009man's Gamepad Prompt Asset Pack (MIT, credit kept in `public/assets/gamepad/`), built by `art-source/gamepad/build-atlas.mjs`. Do not use the same author's "Gamepad Asset Pack" (controller overlays) in the game — its licensing isn't cleared for commercial use.
-- `GamepadNavigator` works on any `NavigableItem` (`input/NavigableItem.ts`: `setFocused`, `activate`, world position) — `Button` and the main menu's `MenuItem` both implement it; give a new focusable component that interface instead of extending `Button`.
-- Focus is moved by the D-pad to the nearest button in that direction (`input/spatialNavigation.ts`); tabs are NOT D-pad targets — they switch only with **L / R** (or a click), and after a switch focus starts on the first interactive element of the section (or Back if it has none).
-- Visual cues: yellow Glow = active tab (`Button` `selectedGlow`), cyan Glow = gamepad focus, yellow tint = selected option. Glow filters are created lazily and only for those buttons (each one costs a render pass); their quality is a user setting (`config/glowQuality.ts`, default low).
+- `GamepadNavigator` works on any `NavigableItem` (`input/NavigableItem.ts`: `setFocused`, `activate`, world position) — `MenuItem` and the settings controls (`ChoiceChip`, `ArrowSelector`, `LineSlider`, `TextButton`) implement it; give a new focusable component that interface. A control that uses a D-pad direction itself (a slider's left/right) implements the optional `handleDirection()`.
+- Focus is moved by the D-pad to the nearest item in that direction (`input/spatialNavigation.ts`); the Settings tabs are NOT D-pad targets — they switch only with **L / R** (or a click), and after a switch focus starts on the first control of the section (or Back if it has none).
+- Visual cues: in the settings a focused control (gamepad or mouse hover) gets a plain thin cream frame (`ui/FocusFrame.ts`) — **no effects, no filters**; the selected option is a cream plate with dark text. Keep it that plain; do not bring back Glow filters.
 
 ---
 

@@ -16,7 +16,7 @@ describe('settings persistence', () => {
     it('restores exactly what was saved (simulated reload)', () => {
         const storage = fakeStorage();
         const chosen = settingsSchema.parse({
-            display: { renderQuality: 'medium', glowQuality: 'high' },
+            display: { renderQuality: 'medium' },
             language: { locale: 'pl' },
             audio: { musicTrack: 'theme3', masterVolume: 80, musicVolume: 30, sfxVolume: 100 },
         });
@@ -41,7 +41,6 @@ describe('settings persistence', () => {
         const loaded = loadSettings(storage);
 
         expect(loaded.display.renderQuality).toBe('low');
-        expect(loaded.display.glowQuality).toBe('low');
     });
 
     it('defaults the music track for a save made before the audio setting existed', () => {
