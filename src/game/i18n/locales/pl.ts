@@ -38,7 +38,10 @@ export const pl: Translation = {
             rawButtons: 'Surowe przyciski i osie',
             rawLayout: 'Surowe przyciski i osie (nierozpoznany układ)',
         },
-        comingSoon: 'Wkrótce...',
+        audio: {
+            music: 'Muzyka',
+            track: 'Utwór {{number}}',
+        },
     },
     game: {
         placeholder: 'Gra',

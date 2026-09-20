@@ -38,7 +38,10 @@ export const ru: Translation = {
             rawButtons: 'Кнопки и оси как есть',
             rawLayout: 'Кнопки и оси как есть (раскладка не распознана)',
         },
-        comingSoon: 'Скоро...',
+        audio: {
+            music: 'Музыка',
+            track: 'Трек {{number}}',
+        },
     },
     game: {
         placeholder: 'Игра',

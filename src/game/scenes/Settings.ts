@@ -1,4 +1,5 @@
 import { GameObjects, Scene, Scenes } from 'phaser';
+import { MUSIC_TRACK_IDS } from '../audio/musicTracks';
 import { IS_DEV } from '../config/devMode';
 import { GLOW_QUALITIES } from '../config/glowQuality';
 import { RENDER_QUALITIES, toDevicePixels } from '../config/pixelRatio';
@@ -53,6 +54,10 @@ export class Settings extends Scene {
 
     create(): void {
         const { width, height } = this.scale;
+
+        // Keeps the menu music going if this scene is entered directly, and
+        // lets the Audio scene follow the track picked in the Audio tab.
+        EventBus.emit(EVENTS.MUSIC_MENU_START);
 
         const titleY = toDevicePixels(55);
         const title = new Title(this, width / 2, titleY, { label: t('settings.title') });
@@ -181,8 +186,8 @@ export class Settings extends Scene {
                 return this.renderLanguageTab();
             case 'controls':
                 return this.renderControlsTab();
-            default:
-                return this.renderStubTab();
+            case 'audio':
+                return this.renderAudioTab();
         }
     }
 
@@ -215,6 +220,17 @@ export class Settings extends Scene {
             this.content.add(new GamepadTester(this, 0, 0));
         }
         return [];
+    }
+
+    /** Picking a track restarts this scene (SETTINGS_CHANGED), and the Audio scene switches to it at once. */
+    private renderAudioTab(): Button[] {
+        return this.renderOptionRow(
+            0,
+            t('settings.audio.music'),
+            MUSIC_TRACK_IDS.map((id, index) => ({ value: id, label: t('settings.audio.track', { number: index + 1 }) })),
+            SettingsStore.get().audio.musicTrack,
+            (musicTrack) => SettingsStore.setAudio({ musicTrack }),
+        );
     }
 
     private renderLanguageTab(): Button[] {
@@ -264,18 +280,5 @@ export class Settings extends Scene {
         }
 
         return buttons;
-    }
-
-    private renderStubTab(): Button[] {
-        const text = this.add
-            .text(0, toDevicePixels(65), t('settings.comingSoon'), {
-                fontFamily: 'Arial',
-                fontSize: toDevicePixels(20),
-                color: '#8899aa',
-            })
-            .setOrigin(0.5);
-        this.content.add(text);
-
-        return [];
     }
 }

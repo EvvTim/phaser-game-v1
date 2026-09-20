@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DEFAULT_MUSIC_TRACK, MUSIC_TRACK_IDS } from '../audio/musicTracks';
 import { DEFAULT_GLOW_QUALITY, GLOW_QUALITIES } from '../config/glowQuality';
 import { RENDER_QUALITIES } from '../config/pixelRatio';
 import { LANGUAGES, detectSystemLanguage } from '../i18n/languages';
@@ -15,6 +16,11 @@ export const languageSettingsSchema = z.object({
 });
 export type LanguageSettings = z.infer<typeof languageSettingsSchema>;
 
+export const audioSettingsSchema = z.object({
+    musicTrack: z.enum(MUSIC_TRACK_IDS).default(DEFAULT_MUSIC_TRACK),
+});
+export type AudioSettings = z.infer<typeof audioSettingsSchema>;
+
 /**
  * Full persisted settings shape. Extend this (and the matching Settings
  * scene tab) as controls/language/audio settings are implemented — every
@@ -23,5 +29,6 @@ export type LanguageSettings = z.infer<typeof languageSettingsSchema>;
 export const settingsSchema = z.object({
     display: displaySettingsSchema.default({}),
     language: languageSettingsSchema.default({}),
+    audio: audioSettingsSchema.default({}),
 });
 export type Settings = z.infer<typeof settingsSchema>;

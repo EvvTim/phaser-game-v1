@@ -44,7 +44,10 @@ export const en = {
             rawButtons: 'Raw buttons and axes',
             rawLayout: 'Raw buttons and axes (layout not recognized)',
         },
-        comingSoon: 'Coming soon...',
+        audio: {
+            music: 'Music',
+            track: 'Track {{number}}',
+        },
     },
     game: {
         placeholder: 'Game',

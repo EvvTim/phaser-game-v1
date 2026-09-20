@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_MUSIC_TRACK } from '../audio/musicTracks';
 import { settingsSchema } from './settingsSchema';
 import { SETTINGS_STORAGE_KEY, loadSettings, saveSettings } from './settingsStorage';
 
@@ -16,6 +17,7 @@ describe('settings persistence', () => {
         const chosen = settingsSchema.parse({
             display: { renderQuality: 'medium', glowQuality: 'high' },
             language: { locale: 'pl' },
+            audio: { musicTrack: 'theme3' },
         });
 
         saveSettings(storage, chosen);
@@ -39,6 +41,18 @@ describe('settings persistence', () => {
 
         expect(loaded.display.renderQuality).toBe('low');
         expect(loaded.display.glowQuality).toBe('low');
+    });
+
+    it('defaults the music track for a save made before the audio setting existed', () => {
+        const storage = fakeStorage({ [SETTINGS_STORAGE_KEY]: JSON.stringify({ language: { locale: 'en' } }) });
+
+        expect(loadSettings(storage).audio.musicTrack).toBe(DEFAULT_MUSIC_TRACK);
+    });
+
+    it('falls back to defaults when the saved music track no longer exists', () => {
+        const storage = fakeStorage({ [SETTINGS_STORAGE_KEY]: JSON.stringify({ audio: { musicTrack: 'removed-track' } }) });
+
+        expect(loadSettings(storage)).toEqual(settingsSchema.parse({}));
     });
 
     it('falls back to defaults on corrupt or incompatible data', () => {

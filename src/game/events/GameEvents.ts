@@ -6,6 +6,10 @@
 export const EVENTS = Object.freeze({
     GAME_READY: 'game-ready',
     SETTINGS_CHANGED: 'settings-changed',
+    /** A menu-flow scene is up: the Audio scene should be playing the chosen menu track. */
+    MUSIC_MENU_START: 'music-menu-start',
+    /** Menu music is no longer wanted (e.g. gameplay started): fade it out. */
+    MUSIC_STOP: 'music-stop',
 } as const);
 
 export type GameEventName = (typeof EVENTS)[keyof typeof EVENTS];

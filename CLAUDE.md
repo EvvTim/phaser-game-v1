@@ -43,6 +43,7 @@
 
 ### 5. Settings
 - Persisted settings live in `src/game/settings/`: Zod schema (`settingsSchema.ts`, every field needs a default), storage (`settingsStorage.ts`), and `SettingsStore` (emits `EVENTS.SETTINGS_CHANGED`).
+- **Audio:** menu music is owned by the persistent `Audio` scene (`scenes/Audio.ts`); scenes drive it only through `EVENTS.MUSIC_MENU_START` / `EVENTS.MUSIC_STOP`, never by referencing it. Decode only the selected track (~70-90 MB each) — see `audio/musicTracks.ts` and README.
 - **Adding a setting:** schema field + default → `SettingsStore` setter (if new section) → apply it at startup and on change in `game/main.ts` (display settings via `applyDisplaySettings`) → UI in the Settings scene → i18n keys in all 4 locales → tests.
 
 ### 6. Gamepad UI

@@ -1,6 +1,8 @@
 import { Geom, Scale, Scene, Scenes } from 'phaser';
 import { version } from '../../../package.json';
 import { toDevicePixels } from '../config/pixelRatio';
+import { EventBus } from '../events/EventBus';
+import { EVENTS } from '../events/GameEvents';
 import { getLanguage, t } from '../i18n/i18n';
 import { attachGamepadLogger } from '../input/gamepadLogger';
 import { GamepadNavigator } from '../input/GamepadNavigator';
@@ -36,6 +38,7 @@ export class MainMenu extends Scene {
         const { width, height } = this.scale;
 
         attachGamepadLogger(this);
+        EventBus.emit(EVENTS.MUSIC_MENU_START);
 
         const background = this.addBackground(width, height);
         this.addSideShade(width, height, background);

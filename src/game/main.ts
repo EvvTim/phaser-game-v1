@@ -1,3 +1,4 @@
+import { Audio } from './scenes/Audio';
 import { Boot } from './scenes/Boot';
 import { GameOver } from './scenes/GameOver';
 import { Game as MainGame } from './scenes/Game';
@@ -43,7 +44,7 @@ const StartGame = (parent: string): Game => {
             zoom: 1 / pixelRatio,
             autoCenter: Scale.CENTER_BOTH,
         },
-        scene: [Boot, Preloader, MainMenu, MainGame, GameOver, Settings],
+        scene: [Boot, Audio, Preloader, MainMenu, MainGame, GameOver, Settings],
     };
 
     const game = new Game(config);

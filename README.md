@@ -28,6 +28,7 @@ index.html              Host page for the game
 public/                 Static assets served as-is (public/assets/*)
 src/main.ts             Application bootstrap
 src/game/main.ts         Builds the validated game config and starts Phaser.Game
+src/game/audio/         Menu music: track registry + pure play/load decision logic (the player is scenes/Audio.ts)
 src/game/config/        Game config + its Zod schema (validated at startup)
 src/game/events/        Shared EventBus and the EVENTS name registry
 src/game/factories/     Object-pool factories (Phaser.GameObjects.Group wrappers)
@@ -174,11 +175,43 @@ in `scenes/MainMenu.ts` and the list grows upward.
 - The "Select" `GamepadHint` (bottom-right) shows only while a gamepad is
   connected; the bottom-left label is the `package.json` version.
 
+## Audio
+
+Menu music: four tracks in `public/assets/music/` (Opus in an MP4 container,
+~3-4 minutes each), registered in `src/game/audio/musicTracks.ts`
+(`MUSIC_TRACK_IDS` — the ids are what settings persist, so never reuse one for
+a different track). Settings -> Audio picks which one plays
+(`settings.audio.musicTrack`, default `theme1`); the choice takes effect at once.
+
+- `scenes/Audio.ts` is a persistent, display-less scene launched by `Boot` and
+  never stopped. It has to be its own scene because Phaser cancels a scene's
+  loads when it shuts down, and the music must keep loading/playing across
+  menu scenes. Other scenes don't call it: they emit `EVENTS.MUSIC_MENU_START`
+  (`MainMenu`, `Settings`) or `EVENTS.MUSIC_STOP` (`Game` — there is no
+  gameplay music yet), and it also follows `SETTINGS_CHANGED`. Tracks loop and
+  fade in/out with native tweens.
+- **Only the chosen track is decoded.** A decoded track is ~70-90 MB of PCM, so
+  the Preloader queues just the selected one (`queueMusicTrack`), the Audio scene
+  loads another on demand when it's picked, and the previous one is dropped from
+  the audio cache. Stopping (entering `Game`) keeps the buffer, so returning to the
+  menu resumes instantly.
+- `decideMusicAction()` in `audio/musicTracks.ts` is the pure "stop / play / load /
+  nothing" decision, unit-tested; tweak volume and fades there (`MUSIC_VOLUME`,
+  `MUSIC_FADE_*`).
+- Browsers block audio until the first click/key; Phaser's SoundManager queues the
+  play and starts it on that first interaction, so nothing special is needed.
+- **Adding a track:** drop the file in `public/assets/music/`, add an id to
+  `MUSIC_TRACK_IDS` and its file to `TRACK_FILES`; the Settings row builds its
+  buttons ("Track N") from `MUSIC_TRACK_IDS`, so keep the row to ~4 buttons or
+  give it a second row. Opus-in-MP4 plays in current Chrome, Edge and Firefox
+  (Safari support is newer); add an `.ogg`/`.mp3` alternative if an older
+  browser matters.
+
 ## Settings screen
 
 Reachable from MainMenu -> Settings. Tabs: Display, Controls, Language,
-Audio — Display, Controls and Language are implemented; Audio renders a
-"Coming soon" stub until built out. **Controls is DEV-only**: it's shown
+Audio — all four are implemented (Audio picks the menu music, see Audio
+below). **Controls is DEV-only**: it's shown
 only under `bun run dev` (`IS_DEV` in `game/config/devMode.ts`, i.e.
 `import.meta.env.DEV`), and production builds omit the tab and drop the tester
 code from the bundle. Which tabs exist is decided by `getVisibleTabs()` in

@@ -15,6 +15,8 @@ export class Boot extends Scene {
     }
 
     create(): void {
+        // Runs alongside every other scene for the whole session (see scenes/Audio.ts).
+        this.scene.launch('Audio');
         this.scene.start('Preloader');
     }
 }

@@ -1,5 +1,7 @@
 import { Scene } from 'phaser';
 import { toDevicePixels } from '../config/pixelRatio';
+import { EventBus } from '../events/EventBus';
+import { EVENTS } from '../events/GameEvents';
 import { t } from '../i18n/i18n';
 import { attachGamepadLogger } from '../input/gamepadLogger';
 
@@ -12,6 +14,9 @@ export class Game extends Scene {
         const { width, height } = this.scale;
 
         attachGamepadLogger(this);
+
+        // No gameplay music yet — the menu track fades out.
+        EventBus.emit(EVENTS.MUSIC_STOP);
 
         // TODO: replace with real gameplay setup.
         this.add

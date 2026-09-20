@@ -1,6 +1,12 @@
 import { EventBus } from '../events/EventBus';
 import { EVENTS } from '../events/GameEvents';
-import { settingsSchema, type DisplaySettings, type LanguageSettings, type Settings } from './settingsSchema';
+import {
+    settingsSchema,
+    type AudioSettings,
+    type DisplaySettings,
+    type LanguageSettings,
+    type Settings,
+} from './settingsSchema';
 import { getBrowserStorage, loadSettings, saveSettings } from './settingsStorage';
 
 /**
@@ -24,6 +30,10 @@ class SettingsStoreImpl {
 
     setLanguage(patch: Partial<LanguageSettings>): void {
         this.commit({ ...this.settings, language: { ...this.settings.language, ...patch } });
+    }
+
+    setAudio(patch: Partial<AudioSettings>): void {
+        this.commit({ ...this.settings, audio: { ...this.settings.audio, ...patch } });
     }
 
     private commit(next: Settings): void {
