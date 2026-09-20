@@ -11,6 +11,7 @@
 ### Package Manager (Bun only)
 - Use **only `bun`**: `bun install`, `bun add <pkg>`, `bun run <script>`, `bunx`. **Never use `npm`, `npx`, `yarn` or `pnpm`**, and never leave a `package-lock.json` behind — `bun.lock` is the only lockfile.
 - Check work with `bun run typecheck`, `bun run test` and `bun run build`.
+- **CI/CD:** `.github/workflows/ci-cd.yml` runs typecheck + tests on every push, then builds and deploys `main` to GitHub Pages only if they pass (see README). Keep it Bun-only, keep `base: './'` and every asset path relative (the site is served from `/<repo>/`), and don't push a change that fails `typecheck`/`test`/`build` locally.
 
 ---
 

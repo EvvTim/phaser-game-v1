@@ -21,6 +21,37 @@ lockfile); `bun.lock` is the single source of truth.
 | `bun run test`       | Run the Vitest test suite once                  |
 | `bun run test:watch` | Run Vitest in watch mode                        |
 
+## CI/CD and GitHub Pages
+
+`.github/workflows/ci-cd.yml` runs on every push (and pull request, and by hand from
+the Actions tab):
+
+1. **`test`** — `bun install --frozen-lockfile`, `bun run typecheck`, `bun run test`.
+2. **`build`** (only if `test` passed) — `bun run build`. On `main` the resulting
+   `dist/` is uploaded as the Pages artifact; on any other branch this only proves
+   the project builds.
+3. **`deploy`** (only if `build` passed, and only for a push to `main`) — publishes
+   the artifact to GitHub Pages.
+
+A failing typecheck or test stops the run before anything is built or published.
+Deploys queue instead of cancelling each other; a newer push to the same ref
+supersedes an older test run still in progress. Bun only, like everywhere else in
+the project (the Bun version is pinned in the workflow's `BUN_VERSION`; bump it
+together with your local one).
+
+**One-time setup** (repository owner): Settings -> Pages -> Build and deployment
+-> Source: **GitHub Actions**. After the first green run on `main` the game is at
+`https://<user>.github.io/<repo>/` (the deploy job also prints the URL).
+
+- The site lives under `/<repo>/`, so asset paths must stay **relative**:
+  `vite/config.prod.mjs` has `base: './'` and the game loads files as
+  `assets/...` relative to the page. Never use a leading `/` for a path in code or
+  `index.html`.
+- Everything in `public/` is published as is (~26 MB now, mostly music and the
+  artwork), so keep unused files out of it.
+- To reproduce a CI run locally:
+  `bun install --frozen-lockfile && bun run typecheck && bun run test && bun run build`.
+
 ## Project structure
 
 ```
