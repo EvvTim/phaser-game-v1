@@ -137,7 +137,13 @@ UI text uses [i18next](https://www.i18next.com) with four languages: Russian
 
 Reachable from MainMenu -> Settings. Tabs: Display, Controls, Language,
 Audio — Display, Controls and Language are implemented; Audio renders a
-"Coming soon" stub until built out.
+"Coming soon" stub until built out. **Controls is DEV-only**: it's shown
+only under `bun run dev` (`IS_DEV` in `game/config/devMode.ts`, i.e.
+`import.meta.env.DEV`), and production builds omit the tab and drop the tester
+code from the bundle. Which tabs exist is decided by `getVisibleTabs()` in
+`settings/settingsTabs.ts`; `resolveActiveTab()` keeps a scene restart from
+landing on a hidden tab. Anything else that must be DEV-only should read
+`IS_DEV` too.
 
 The **Controls** tab is a live gamepad tester (`src/game/ui/GamepadTester.ts`)
 for checking that every button of a connected controller works — browsers
