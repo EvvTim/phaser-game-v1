@@ -31,7 +31,7 @@ export class Preloader extends Scene {
 
     preload(): void {
         this.load.setPath('assets');
-        this.load.image(MAIN_MENU_BG_KEY, 'ui/main-menu-bg.jpg');
+        this.load.image(MAIN_MENU_BG_KEY, 'ui/main-menu-bg.png');
         this.load.atlas(UI_ATLAS_KEY, 'ui/menu-atlas.png', 'ui/menu-atlas.json');
         this.load.atlas(GAMEPAD_ATLAS_KEY, 'gamepad/prompts-atlas.png', 'gamepad/prompts-atlas.json');
     }

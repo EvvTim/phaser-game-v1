@@ -166,8 +166,8 @@ in `scenes/MainMenu.ts` and the list grows upward.
   grows and steps right. The two plate skins (gradient + glow, which Phaser's
   Graphics can't draw) are semi-transparent Canvas 2D textures generated once
   per size by `ui/menuItemTextures.ts`. Labels are upper-cased in code with the
-  current language's rules, not in translations, and use the Play Bold font
-  (see Assets) with a slight horizontal squeeze (`LABEL_SCALE_X`).
+  current language's rules, not in translations, and use the Exo 2 SemiBold
+  font (see Assets).
 - One item is highlighted at a time: the D-pad moves it, and the mouse
   hovering an item moves it too (`GamepadNavigator#focusItem`). Items are
   anything implementing `input/NavigableItem.ts` (`Button` and `MenuItem` do).
@@ -244,10 +244,17 @@ license excludes Guide buttons), so it's a text chip.
 
 ## Assets
 
-The main menu font is [Play](https://fonts.google.com/specimen/Play) Bold by
-Jonas Hecksher (SIL Open Font License; text in
-`public/assets/fonts/OFL-Play.txt`), subset to Latin, Latin Extended-A and
-Cyrillic so all four languages render — `public/assets/fonts/Play-Bold.woff2`.
+The main menu font is [Exo 2](https://fonts.google.com/specimen/Exo+2)
+SemiBold (SIL Open Font License; text in `public/assets/fonts/OFL-Exo2.txt`),
+a static 600-weight instance subset to Latin, Latin Extended-A and Cyrillic so
+all four languages render — `public/assets/fonts/Exo2-SemiBold.woff2`. It was
+chosen as the closest free match to the mock-up's lettering: ~50 free
+techno/squared Google Fonts were compared letter by letter (shape, stroke
+weight, width) against `examples/main-menu-example.png`. Exo 2 scored near the
+top and is the only close match that also has Cyrillic (Exo and Oxanium
+scored marginally higher but are Latin-only; Play scored clearly lower). Font
+size and letter spacing in `ui/mainMenuLayout.ts` are fitted to the mock-up's
+measured word widths.
 Phaser Text draws to a canvas, so the font must be loaded before the first
 Text using it exists: `Preloader` awaits `loadMenuFont()` (`ui/menuFont.ts`)
 before starting `MainMenu`. Use `MENU_FONT_STACK` for Text in that style.

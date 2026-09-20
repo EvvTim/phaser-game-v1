@@ -17,8 +17,8 @@ const REFERENCE = {
     itemPitch: 90,
     /** Distance from the bottom edge to the centre of the last item. */
     bottomInset: 198,
-    idle: { width: 400, height: 72, fontSize: 38, letterSpacing: 0, labelInset: 29 },
-    active: { width: 484, height: 77, fontSize: 45, letterSpacing: 3, labelInset: 38 },
+    idle: { width: 400, height: 72, fontSize: 32, letterSpacing: 2, labelInset: 29 },
+    active: { width: 484, height: 77, fontSize: 41, letterSpacing: 5, labelInset: 36 },
 } as const;
 
 /** Never let the menu take more than this share of a narrow (e.g. portrait) viewport's width. */

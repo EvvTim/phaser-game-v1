@@ -6,8 +6,8 @@ describe('computeMainMenuLayout', () => {
         const [item] = computeMainMenuLayout(1920, 1080, 2).items;
 
         expect(item.x).toBe(143);
-        expect(item.idle).toMatchObject({ width: 400, height: 72, fontSize: 38 });
-        expect(item.active).toMatchObject({ width: 484, height: 77, fontSize: 45 });
+        expect(item.idle).toMatchObject({ width: 400, height: 72, fontSize: 32 });
+        expect(item.active).toMatchObject({ width: 484, height: 77, fontSize: 41 });
     });
 
     it('makes the highlighted state wider and bigger than the idle one', () => {

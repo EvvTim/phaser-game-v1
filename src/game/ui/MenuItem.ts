@@ -1,7 +1,7 @@
 import { GameObjects, Scene } from 'phaser';
 import type { NavigableItem } from '../input/NavigableItem';
 import type { MenuItemState } from './mainMenuLayout';
-import { MENU_FONT_STACK } from './menuFont';
+import { MENU_FONT_STACK, MENU_FONT_WEIGHT } from './menuFont';
 import { ensureMenuItemTexture, type MenuItemSkin } from './menuItemTextures';
 
 export interface MenuItemConfig {
@@ -14,9 +14,6 @@ export interface MenuItemConfig {
     /** Mouse moved onto the item — the scene moves the highlight here (see GamepadNavigator#focusItem). */
     onHover?: () => void;
 }
-
-/** Glyphs are drawn a little narrower than Play Bold's natural width, as in the mock-up. */
-const LABEL_SCALE_X = 0.9;
 
 const LABEL_STYLE = {
     idle: { color: '#f6eef8', glow: '#ff9ad2' },
@@ -51,10 +48,9 @@ export class MenuItem extends GameObjects.Container implements NavigableItem {
         this.label = scene.add
             .text(0, 0, config.label, {
                 fontFamily: MENU_FONT_STACK,
-                fontStyle: 'bold',
+                fontStyle: MENU_FONT_WEIGHT,
             })
-            .setOrigin(0, 0.5)
-            .setScale(LABEL_SCALE_X, 1);
+            .setOrigin(0, 0.5);
 
         this.add([this.plate, this.label]);
 
