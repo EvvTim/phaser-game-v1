@@ -1,7 +1,7 @@
 import type { Scene } from 'phaser';
 import { Scenes } from 'phaser';
 import type { Input } from 'phaser';
-import type { Button } from '../ui/Button';
+import type { NavigableItem } from './NavigableItem';
 import { findNextInDirection } from './spatialNavigation';
 import { detectGamepadMapping, readHatDirection, type Direction, type GamepadMapping } from './gamepadMapping';
 
@@ -23,7 +23,7 @@ export interface GamepadNavigatorOptions {
 
 /**
  * Drives gamepad-only UI navigation: the D-pad (button- or hat-axis-based,
- * see gamepadMapping.ts) moves focus to the nearest registered Button in
+ * see gamepadMapping.ts) moves focus to the nearest registered item (Button, MenuItem, ...) in
  * that direction on screen (see spatialNavigation.ts), the mapped confirm
  * button activates the focused one, the mapped back button (if a callback
  * is set) fires it, and the shoulder buttons (if callbacks are set) fire
@@ -35,7 +35,7 @@ export interface GamepadNavigatorOptions {
  * listeners on scene shutdown.
  */
 export class GamepadNavigator {
-    private items: Button[] = [];
+    private items: NavigableItem[] = [];
     private focusIndex = -1;
     private readonly onBack: (() => void) | undefined;
     private readonly onShoulderLeft: (() => void) | undefined;
@@ -117,9 +117,20 @@ export class GamepadNavigator {
     }
 
     /** Replaces the navigable items, in navigation order, and focuses the first one. */
-    setItems(items: Button[]): void {
+    setItems(items: NavigableItem[]): void {
         this.items = items;
         this.focusIndex = items.length > 0 ? 0 : -1;
+        this.applyFocusVisuals();
+    }
+
+    /** Moves focus to a registered item directly (e.g. the mouse hovering it), so pointer and D-pad share one highlight. */
+    focusItem(item: NavigableItem): void {
+        const index = this.items.indexOf(item);
+        if (index === -1 || index === this.focusIndex) {
+            return;
+        }
+
+        this.focusIndex = index;
         this.applyFocusVisuals();
     }
 

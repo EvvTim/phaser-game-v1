@@ -9,7 +9,6 @@ export const ru: Translation = {
         back: 'Назад',
     },
     mainMenu: {
-        title: 'Главное меню',
         play: 'Играть',
         settings: 'Настройки',
     },

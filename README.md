@@ -34,7 +34,7 @@ src/game/factories/     Object-pool factories (Phaser.GameObjects.Group wrappers
 src/game/i18n/          i18next setup, supported languages, RU/UA/EN/PL translations
 src/game/input/         Input helpers built on Phaser's native input plugins (gamepad, etc.)
 src/game/settings/      Persisted settings: Zod schema, localStorage-backed SettingsStore
-src/game/ui/            Reusable UI primitives (Button, TabBar, Title, SectionHeading) for menu/settings screens
+src/game/ui/            Reusable UI primitives (Button, TabBar, Title, SectionHeading, MenuItem) for menu/settings screens
 src/game/scenes/        Boot -> Preloader -> MainMenu -> Game -> GameOver, MainMenu -> Settings -> MainMenu
 ```
 
@@ -59,7 +59,8 @@ Gamepad support uses Phaser's built-in `Input.Gamepad` plugin (enabled via
   Switch 2 Pro Controller (D-pad is a single hat-style axis, not 4 buttons);
   add another as new non-standard controllers turn up.
 - `src/game/input/GamepadNavigator.ts` — one per scene; give it the
-  navigable `Button[]` via `setItems()` (rebuild it whenever that set
+  navigable items (`Button`, `MenuItem`, anything implementing
+  `input/NavigableItem.ts`) via `setItems()` (rebuild it whenever that set
   changes, e.g. Settings on tab switch; the first item gets focus). The D-pad
   moves focus to the nearest button in that direction on screen
   (`input/spatialNavigation.ts` — no wrap-around; sideways moves stay in
@@ -133,6 +134,46 @@ UI text uses [i18next](https://www.i18next.com) with four languages: Russian
   scene (see `SETTINGS_CHANGED`); `game/main.ts` applies the language before
   any scene reacts.
 
+## Main menu
+
+A full-screen artwork (`public/assets/ui/main-menu-bg.jpg`, key
+`MAIN_MENU_BG_KEY`) with a list of options at the bottom-left, laid out after
+the mock-up in `examples/main-menu-example.png`. For now there are two options:
+Play (-> `Game`) and Settings (-> `Settings`); add an entry in `getEntries()`
+in `scenes/MainMenu.ts` and the list grows upward.
+
+- The background is cover-fitted with Phaser's `Geom.Rectangle.FitOutside`,
+  centred horizontally but pinned to the top (a 16:9 window crops the
+  near-square art vertically, and the robot's head must stay in view), and mirrored horizontally (`setFlipX`) — the source art has the characters
+  on the left, where the menu list sits. The image contains no text, so the
+  flip is safe; drop it if the artwork is replaced by one composed for the menu.
+  The scene restarts on `Scale.Events.RESIZE` so the background and the item
+  textures follow the window size.
+- The scenery beside the characters is darkened so they stand out
+  (`computeSideShade()` in `ui/mainMenuLayout.ts`): a left-to-centre
+  gradient that fades out where the characters begin (`CHARACTERS_LEFT_SHARE`,
+  measured in the mirrored image, so it follows the cover-fit crop) plus a
+  light shade on the far right edge. It's two native `Graphics.fillGradientStyle`
+  rects between the background and the menu — no filter render pass, and the
+  menu items stay bright. Tune `SIDE_SHADE` (alpha, right width) there.
+- `ui/mainMenuLayout.ts` is the pure layout math (designed on 1920x1080,
+  scaled by viewport height; tests next to it). Change the menu position,
+  item size or font size there.
+- `ui/MenuItem.ts` is one option, styled after the mock-up (sizes and colours
+  measured from it): a faint translucent plate with a thin rim and a
+  glowing label when idle; when highlighted the plate grows wider and turns
+  into a periwinkle bar that brightens to white on the right, and the label
+  grows and steps right. The two plate skins (gradient + glow, which Phaser's
+  Graphics can't draw) are semi-transparent Canvas 2D textures generated once
+  per size by `ui/menuItemTextures.ts`. Labels are upper-cased in code with the
+  current language's rules, not in translations, and use the Play Bold font
+  (see Assets) with a slight horizontal squeeze (`LABEL_SCALE_X`).
+- One item is highlighted at a time: the D-pad moves it, and the mouse
+  hovering an item moves it too (`GamepadNavigator#focusItem`). Items are
+  anything implementing `input/NavigableItem.ts` (`Button` and `MenuItem` do).
+- The "Select" `GamepadHint` (bottom-right) shows only while a gamepad is
+  connected; the bottom-left label is the `package.json` version.
+
 ## Settings screen
 
 Reachable from MainMenu -> Settings. Tabs: Display, Controls, Language,
@@ -199,9 +240,17 @@ license excludes Guide buttons), so it's a text chip.
   a centered label, same CSS-box sizing/padding as `Button` (they share the
   sizing math via `ui/boxLayout.ts`) but not interactive. It's meant to sit
   above a screen's content panel with its own background — see how
-  `MainMenu` and `Settings` position it before the panel, not inside it.
+  `Settings` positions it before the panel, not inside it.
 
 ## Assets
+
+The main menu font is [Play](https://fonts.google.com/specimen/Play) Bold by
+Jonas Hecksher (SIL Open Font License; text in
+`public/assets/fonts/OFL-Play.txt`), subset to Latin, Latin Extended-A and
+Cyrillic so all four languages render — `public/assets/fonts/Play-Bold.woff2`.
+Phaser Text draws to a canvas, so the font must be loaded before the first
+Text using it exists: `Preloader` awaits `loadMenuFont()` (`ui/menuFont.ts`)
+before starting `MainMenu`. Use `MENU_FONT_STACK` for Text in that style.
 
 Button-prompt icons come from [Gamepad Prompt Asset Pack](https://github.com/AL2009man/Gamepad-Prompt-Asset-Pack)
 by AL2009man (MIT; license in `public/assets/gamepad/`) — see
@@ -221,7 +270,7 @@ panels, buttons, bars, icon buttons. Loaded once in `Preloader`, referenced
 everywhere via `UI_ATLAS_KEY` / `UI_FRAMES` in `src/game/ui/uiAtlas.ts`
 rather than string literals.
 
-- `Button` and the Settings/MainMenu panel backgrounds use Phaser's native
+- `Button` and the Settings panel background use Phaser's native
   `GameObjects.NineSlice` (`this.add.nineslice`) so the wood border stays
   crisp while the middle stretches to fit — the slice metrics
   (`ui/Button.ts`'s `SLICE`, `ui/panelSlice.ts`) are tuned for how large

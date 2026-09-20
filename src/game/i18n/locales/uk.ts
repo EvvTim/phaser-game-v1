@@ -9,7 +9,6 @@ export const uk: Translation = {
         back: 'Назад',
     },
     mainMenu: {
-        title: 'Головне меню',
         play: 'Грати',
         settings: 'Налаштування',
     },

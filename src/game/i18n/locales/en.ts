@@ -15,7 +15,6 @@ export const en = {
         back: 'Back',
     },
     mainMenu: {
-        title: 'Main Menu',
         play: 'Play',
         settings: 'Settings',
     },

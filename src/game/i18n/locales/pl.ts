@@ -9,7 +9,6 @@ export const pl: Translation = {
         back: 'Wstecz',
     },
     mainMenu: {
-        title: 'Menu główne',
         play: 'Graj',
         settings: 'Ustawienia',
     },
