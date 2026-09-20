@@ -1,5 +1,6 @@
 import { Scene } from 'phaser';
 import { emitUiSound } from '../audio/emitUiSound';
+import { toDevicePixels } from '../config/pixelRatio';
 import { EVENTS } from '../events/GameEvents';
 import { EventBus } from '../events/EventBus';
 import { getLanguage, t } from '../i18n/i18n';
@@ -7,26 +8,45 @@ import { GamepadNavigator } from '../input/GamepadNavigator';
 import { GamepadHint } from '../ui/GamepadHint';
 import { getPromptFrame } from '../ui/gamepadPrompts';
 import { GamepadTester } from '../ui/GamepadTester';
-import { addSettingsBackdrop } from '../ui/settingsBackdrop';
-import { drawSettingsDecor } from '../ui/settingsDecor';
+import { fadeCameraIn, fadeCameraOutThen, motionMs, prefersReducedMotion, tweenIn, tweenOut } from '../ui/motion';
+import { restartSceneOnResize } from '../ui/restartSceneOnResize';
+import { playDecorOut, type SettingsDecor } from '../ui/settingsDecor';
+import { createSettingsFrame } from '../ui/settingsFrame';
 import { computeSettingsLayout, type SettingsEntry } from '../ui/settingsLayout';
 import { SETTINGS_COLORS } from '../ui/settingsTheme';
-import { restartSceneOnResize } from '../ui/restartSceneOnResize';
 import { TextButton } from '../ui/TextButton';
-import { gameTextStyle } from '../ui/textStyle';
 
 /** The settings block this screen borrows its frame from — seven rows of room for the tester between title and action. */
 const FRAME: readonly SettingsEntry[] = Array.from({ length: 7 }, () => 'row');
+
+interface GamepadTestSceneData {
+    /** Play the entrance animation (default); a rebuild after a resize passes `false`. */
+    animate?: boolean;
+    fade?: boolean;
+}
 
 /**
  * DEV-only screen (opened from a DEV-only row of Settings; the scene is only
  * registered under `IS_DEV`, see game/main.ts): the live gamepad tester, which
  * lights up every button of a connected controller as it is pressed. Uses the
- * settings screens' backdrop and frame.
+ * settings screens' backdrop, frame and motion.
  */
 export class GamepadTest extends Scene {
+    private animate = true;
+    private fade = false;
+    private leaving = false;
+    private decor!: SettingsDecor;
+    private tester!: GamepadTester;
+    private backButton!: TextButton;
+
     constructor() {
         super('GamepadTest');
+    }
+
+    init(data: GamepadTestSceneData): void {
+        this.animate = (data.animate ?? true) && !prefersReducedMotion();
+        this.fade = data.fade ?? false;
+        this.leaving = false;
     }
 
     create(): void {
@@ -37,23 +57,15 @@ export class GamepadTest extends Scene {
         const layout = computeSettingsLayout(width, height, FRAME);
         const { metrics } = layout;
 
-        addSettingsBackdrop(this);
-        drawSettingsDecor(this, layout);
+        if (this.fade) {
+            fadeCameraIn(this);
+        }
 
-        this.add
-            .text(
-                layout.title.x,
-                layout.title.y,
-                t('settings.controls.tester').toLocaleUpperCase(getLanguage()),
-                gameTextStyle({
-                    fontSize: metrics.titleFontSize,
-                    color: SETTINGS_COLORS.creamCss,
-                    letterSpacing: 4 * layout.unit,
-                }),
-            )
-            .setOrigin(0.5);
+        const frame = createSettingsFrame(this, layout, t('settings.controls.tester').toLocaleUpperCase(getLanguage()), this.animate);
+        this.decor = frame.decor;
 
-        this.add.existing(new GamepadTester(this, layout.centerX, layout.titleRules.below.y + 24 * layout.unit));
+        this.tester = new GamepadTester(this, layout.centerX, layout.titleRules.below.y + 24 * layout.unit);
+        this.add.existing(this.tester);
 
         const confirmHint = new GamepadHint(this, layout.hints.confirm.x, layout.hints.confirm.y);
         this.add.existing(confirmHint);
@@ -62,7 +74,7 @@ export class GamepadTest extends Scene {
 
         const goBack = (): void => {
             emitUiSound('back');
-            this.scene.start('Settings');
+            this.leaveToSettings();
         };
 
         const navigator = new GamepadNavigator(this, {
@@ -78,7 +90,7 @@ export class GamepadTest extends Scene {
             },
         });
 
-        const backButton = new TextButton(this, layout.action.x, layout.action.y, {
+        this.backButton = new TextButton(this, layout.action.x, layout.action.y, {
             label: t('common.back').toLocaleUpperCase(getLanguage()),
             fontSize: metrics.actionFontSize,
             color: SETTINGS_COLORS.creamCss,
@@ -88,9 +100,27 @@ export class GamepadTest extends Scene {
             onClick: goBack,
             onHover: (item) => navigator.focusItem(item),
         });
-        this.add.existing(backButton);
-        navigator.setItems([backButton]);
+        this.add.existing(this.backButton);
+        navigator.setItems([this.backButton]);
 
-        restartSceneOnResize(this);
+        if (this.animate) {
+            tweenIn(this, [this.tester], { dy: toDevicePixels(20), delay: motionMs(430) });
+            tweenIn(this, [this.backButton], { dy: toDevicePixels(14), delay: motionMs(640) });
+            tweenIn(this, [confirmHint, backHint], { delay: motionMs(760), stagger: 0 });
+        }
+
+        restartSceneOnResize(this, () => ({ animate: false }));
+    }
+
+    private leaveToSettings(): void {
+        if (this.leaving) {
+            return;
+        }
+        this.leaving = true;
+        this.input.enabled = false;
+
+        tweenOut(this, [this.tester, this.backButton], { dy: -toDevicePixels(14), stagger: motionMs(40) });
+        playDecorOut(this, this.decor);
+        fadeCameraOutThen(this, () => this.scene.start('Settings', { fade: true }));
     }
 }

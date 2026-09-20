@@ -24,11 +24,23 @@ import { GamepadHint } from '../ui/GamepadHint';
 import { getPromptFrame } from '../ui/gamepadPrompts';
 import { LineSlider } from '../ui/LineSlider';
 import { restartSceneOnResize } from '../ui/restartSceneOnResize';
-import { addSettingsBackdrop } from '../ui/settingsBackdrop';
-import { drawHeadingRules, drawSettingsDecor } from '../ui/settingsDecor';
+import {
+    disableInputDeep,
+    fadeCameraIn,
+    fadeCameraOutThen,
+    MOTION,
+    motionMs,
+    prefersReducedMotion,
+    tweenIn,
+    tweenOut,
+    type Tweenable,
+} from '../ui/motion';
+import { createSettingsFrame } from '../ui/settingsFrame';
+import { drawHeadingRules, playDecorOut, settingsSlideDistance, type SettingsDecor } from '../ui/settingsDecor';
 import { computeSettingsLayout, type SettingsEntry, type SettingsLayout } from '../ui/settingsLayout';
 import { SETTINGS_COLORS } from '../ui/settingsTheme';
 import { TextButton } from '../ui/TextButton';
+import { toDevicePixels } from '../config/pixelRatio';
 import { gameTextStyle } from '../ui/textStyle';
 
 /** Controls is DEV-only (it just opens the gamepad tester), so it is missing from production builds. */
@@ -44,6 +56,10 @@ const FRAME: readonly SettingsEntry[] = ['heading', ...Array.from({ length: MAX_
 
 interface SettingsSceneData {
     section?: SettingsSectionKey;
+    /** Play the entrance animation (default). A rebuild of the same screen — a language change, a resize — passes `false`. */
+    animate?: boolean;
+    /** Arrive from a faded-out scene: fade the camera in. */
+    fade?: boolean;
 }
 
 /**
@@ -66,6 +82,10 @@ export class Settings extends Scene {
     private tabs!: ChoiceChips<SettingsSectionKey>;
     private navigator!: GamepadNavigator;
     private backButton!: TextButton;
+    private decor!: SettingsDecor;
+    private animate = true;
+    private fade = false;
+    private leaving = false;
 
     constructor() {
         super('Settings');
@@ -73,6 +93,9 @@ export class Settings extends Scene {
 
     init(data: SettingsSceneData): void {
         this.activeSection = resolveSection(data.section, SECTIONS);
+        this.animate = (data.animate ?? true) && !prefersReducedMotion();
+        this.fade = data.fade ?? false;
+        this.leaving = false;
     }
 
     create(): void {
@@ -86,21 +109,12 @@ export class Settings extends Scene {
         this.layout = layout;
         const { metrics } = layout;
 
-        addSettingsBackdrop(this);
-        drawSettingsDecor(this, layout);
+        if (this.fade) {
+            fadeCameraIn(this);
+        }
 
-        this.add
-            .text(
-                layout.title.x,
-                layout.title.y,
-                t('settings.title').toLocaleUpperCase(getLanguage()),
-                gameTextStyle({
-                    fontSize: metrics.titleFontSize,
-                    color: SETTINGS_COLORS.creamCss,
-                    letterSpacing: 4 * layout.unit,
-                }),
-            )
-            .setOrigin(0.5);
+        const frame = createSettingsFrame(this, layout, t('settings.title').toLocaleUpperCase(getLanguage()), this.animate);
+        this.decor = frame.decor;
 
         // The controls of the active section live here, so a tab switch can rebuild them.
         this.content = this.add.container(0, 0);
@@ -109,7 +123,7 @@ export class Settings extends Scene {
 
         const goBack = (): void => {
             emitUiSound('back');
-            this.scene.start('MainMenu');
+            this.leaveTo('MainMenu');
         };
 
         // Only shown while a gamepad is connected; the icons match the controller's brand.
@@ -150,7 +164,13 @@ export class Settings extends Scene {
         });
         this.add.existing(this.backButton);
 
-        this.renderSection();
+        this.renderSection(this.animate ? { dy: toDevicePixels(20), delay: motionMs(430) } : null);
+
+        if (this.animate) {
+            tweenIn(this, this.tabs.items, { dy: -toDevicePixels(14), delay: motionMs(300), stagger: motionMs(60) });
+            tweenIn(this, [this.backButton], { dy: toDevicePixels(14), delay: motionMs(640) });
+            tweenIn(this, [leftTabHint, rightTabHint, confirmHint, backHint], { delay: motionMs(760), stagger: 0 });
+        }
 
         // A render-quality or language change rebuilds this scene so its UI is redrawn at the new
         // pixel ratio / language (main.ts applies the change first — its SETTINGS_CHANGED listener
@@ -162,14 +182,14 @@ export class Settings extends Scene {
             previousSettings = settings;
 
             if (effect === 'restart') {
-                this.scene.restart({ section: this.activeSection });
+                this.scene.restart({ section: this.activeSection, animate: false });
             }
         };
         EventBus.on(EVENTS.SETTINGS_CHANGED, onSettingsChanged);
         this.events.once(Scenes.Events.SHUTDOWN, () => {
             EventBus.off(EVENTS.SETTINGS_CHANGED, onSettingsChanged);
         });
-        restartSceneOnResize(this, () => ({ section: this.activeSection }));
+        restartSceneOnResize(this, () => ({ section: this.activeSection, animate: false }));
     }
 
     private addHint(x: number, y: number): GamepadHint {
@@ -205,14 +225,29 @@ export class Settings extends Scene {
         this.add.existing(this.tabs);
     }
 
+    /**
+     * Switches to another section. The old page and the new one exist side by
+     * side for a moment — the old drifts away and fades, the new arrives from
+     * the opposite side (which way depends on the tabs' order) — so switching
+     * quickly can't leave anything half-built.
+     */
     private selectSection(key: SettingsSectionKey): void {
-        if (key === this.activeSection) {
+        if (key === this.activeSection || this.leaving) {
             return;
         }
 
+        const direction = SECTIONS.indexOf(key) > SECTIONS.indexOf(this.activeSection) ? 1 : -1;
+        const slide = settingsSlideDistance();
+
         this.activeSection = key;
-        this.tabs.setValue(key);
-        this.renderSection();
+        this.tabs.setValue(key, true);
+
+        const outgoing = this.content;
+        this.content = this.add.container(0, 0);
+        this.renderSection({ dx: direction * slide, delay: motionMs(70), duration: MOTION.sectionInMs, stagger: motionMs(45) });
+
+        disableInputDeep(outgoing);
+        tweenOut(this, [outgoing], { dx: -direction * slide, duration: MOTION.sectionOutMs }, () => outgoing.destroy());
     }
 
     /** L / R shoulder buttons step between sections (wrapping), independent of D-pad focus. */
@@ -224,14 +259,34 @@ export class Settings extends Scene {
         }
     }
 
-    /** Rebuilds the page under the tabs for the active section and points the navigator at it. */
-    private renderSection(): void {
-        this.content.removeAll(true);
-
+    /**
+     * Fills the content container with the active section and points the
+     * navigator at it. `entrance` staggers the elements in from an offset;
+     * `null` shows them at once.
+     */
+    private renderSection(entrance: { dx?: number; dy?: number; delay?: number; duration?: number; stagger?: number } | null): void {
         const items = this.buildSection(this.activeSection);
+
+        if (entrance) {
+            tweenIn(this, this.content.list as unknown as Tweenable[], entrance);
+        }
 
         // Focus starts on the section's first control (or Back, if it has none).
         this.navigator.setItems([...items, this.backButton]);
+    }
+
+    /** Leaves for another scene: this screen's elements drift away, the ornaments shrink and the camera fades. */
+    private leaveTo(sceneKey: string): void {
+        if (this.leaving) {
+            return;
+        }
+        this.leaving = true;
+        this.input.enabled = false;
+
+        const rise = -toDevicePixels(14);
+        tweenOut(this, [this.content, this.tabs, this.backButton], { dy: rise, stagger: motionMs(40) });
+        playDecorOut(this, this.decor);
+        fadeCameraOutThen(this, () => this.scene.start(sceneKey, { fade: true }));
     }
 
     /** The section's heading and rows; returns their navigable controls, top to bottom. */
@@ -418,7 +473,7 @@ export class Settings extends Scene {
                         fontSize: metrics.controlFontSize,
                         frameStroke: metrics.frameStroke,
                         framePadding: metrics.framePadding,
-                        onClick: () => this.scene.start('GamepadTest'),
+                        onClick: () => this.leaveTo('GamepadTest'),
                         onHover: focusOnHover,
                     }),
                 );

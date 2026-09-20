@@ -197,6 +197,46 @@ in `scenes/MainMenu.ts` and the list grows upward.
 - The "Select" `GamepadHint` (bottom-right) shows only while a gamepad is
   connected; the bottom-left label is the `package.json` version.
 
+## Motion
+
+Screens animate in and out with one shared motion language (`ui/motion.ts`), all on
+Phaser's native Tween Manager and camera fades — no custom animation code.
+`MOTION` holds the timings and curves (arriving takes longer than leaving; the
+stagger between the elements of a group is capped). **`MOTION_SPEED` in
+`ui/motion.ts` is the one knob for how fast everything plays** (1 = the original
+design timings, now 1.8): every duration, delay and stagger in the UI goes through
+`motionMs()`, so never write a raw millisecond number in an animation; `tweenIn()` lays elements out
+first and brings them in from an offset, transparent, one after another;
+`tweenOut()` drifts them away and calls back when the last is gone. With the
+system's *reduced motion* preference (`prefers-reduced-motion`) nothing animates:
+everything appears where it belongs and callbacks run at once.
+
+- **Main menu.** On arrival the camera fades in (when coming from a faded-out
+  scene), the artwork settles from 1.05x to its real size (it ends exactly where
+  the settings draw it), the items slide in from the left one after another and the
+  version and the gamepad hint fade in last. Leaving slides the items away; into
+  gameplay the whole screen fades to black.
+- **Main menu -> Settings** is one continuous move: the settings backdrop starts as
+  the menu looks (same artwork, same place, sharp, undarkened) and defocuses and
+  darkens over ~0.75 s (`ui/settingsBackdrop.ts` tweens the Blur filter's offset and
+  the curtain's alpha). Then `ui/settingsFrame.ts` builds the frame: the dotted
+  lines run in from the screen edges, the rules spread from their centres
+  (`ui/settingsDecor.ts` draws each ornament around its own pivot so scaling it
+  from 0 grows it from there), the title drops in, the tabs, the section's
+  controls and Back follow one after another.
+- **Switching a section.** The old page and the new one exist side by side for a
+  moment: the old drifts away and fades (its input is disabled first), the new
+  arrives from the opposite side — the direction follows the tabs' order — with its
+  controls staggered. Each switch gets a fresh container, so switching quickly
+  can't leave anything half-built. The newly selected chip's plate grows in, and an
+  arrow selector's value slides in from the side you stepped toward.
+- **Leaving Settings** drifts the page away, shrinks the ornaments and fades the
+  camera; the menu then plays its own entrance.
+- **Scene data.** Scenes take `animate` (default true) and `fade` in `init(data)`.
+  A rebuild of the same screen — a language change, a window resize — passes
+  `animate: false`, so the page doesn't replay its entrance on every click; a scene
+  that arrives after a faded-out one gets `fade: true`.
+
 ## Audio
 
 Menu music: four tracks in `public/assets/music/` (Opus in an MP4 container,

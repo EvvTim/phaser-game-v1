@@ -43,6 +43,6 @@ export class Preloader extends Scene {
     create(): void {
         // Phaser Text is drawn to a canvas, so the menu font has to be
         // ready before the first scene that uses it is created.
-        void loadGameFont().then(() => this.scene.start('MainMenu'));
+        void loadGameFont().then(() => this.scene.start('MainMenu', { fade: true }));
     }
 }

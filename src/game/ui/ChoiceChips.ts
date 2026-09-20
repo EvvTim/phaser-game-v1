@@ -4,6 +4,7 @@ import { emitUiSound } from '../audio/emitUiSound';
 import type { UiSoundKind } from '../audio/uiSounds';
 import type { NavigableItem } from '../input/NavigableItem';
 import { FocusFrame } from './FocusFrame';
+import { MOTION, prefersReducedMotion } from './motion';
 import { SETTINGS_COLORS } from './settingsTheme';
 import { gameTextStyle } from './textStyle';
 
@@ -90,9 +91,17 @@ export class ChoiceChip extends GameObjects.Container implements NavigableItem {
         this.add([this.plate, this.frame.shape, this.label, hitArea]);
     }
 
-    setSelected(selected: boolean): void {
+    /** `animate` makes a newly selected plate grow in from the left instead of appearing. */
+    setSelected(selected: boolean, animate = false): void {
+        const becameSelected = selected && !this.selected;
         this.selected = selected;
         this.refresh();
+
+        if (becameSelected && animate && !prefersReducedMotion()) {
+            this.scene.tweens.killTweensOf(this.plate);
+            this.plate.setScale(0.35, 1).setX(-this.width * 0.325);
+            this.scene.tweens.add({ targets: this.plate, scaleX: 1, x: 0, duration: MOTION.microMs, ease: MOTION.easeIn });
+        }
     }
 
     setFocused(focused: boolean): void {
@@ -157,7 +166,7 @@ export class ChoiceChips<T extends string> extends GameObjects.Container {
                 option.label,
                 options.metrics,
                 () => {
-                    this.setValue(option.value);
+                    this.setValue(option.value, true);
                     options.onSelect(option.value);
                 },
                 () => options.onHover?.(chip),
@@ -174,8 +183,8 @@ export class ChoiceChips<T extends string> extends GameObjects.Container {
         this.setValue(options.value);
     }
 
-    /** Shows `value` as selected (does not call `onSelect`). */
-    setValue(value: T): void {
-        this.items.forEach((chip, index) => chip.setSelected(this.values[index] === value));
+    /** Shows `value` as selected (does not call `onSelect`); `animate` grows the new plate in. */
+    setValue(value: T, animate = false): void {
+        this.items.forEach((chip, index) => chip.setSelected(this.values[index] === value, animate));
     }
 }

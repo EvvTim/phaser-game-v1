@@ -30,6 +30,7 @@
 ### 3. Architecture & Design Patterns
 - **Event-Driven Architecture:** Use Phaser’s native Event Emitter (`this.events` inside Scenes, or a shared Phaser Event Emitter / Scene Manager events) for communication between components, managers, systems, and scenes. Avoid tight coupling and direct cross-system references.
 - **Scene Isolation:** Keep Scenes focused on lifecycle, setup, and orchestration. Offload domain logic, data models, and complex calculations to isolated helper classes or pure functional modules.
+- **Motion:** animate with Phaser's Tween Manager / camera fades through `ui/motion.ts` (`MOTION` timings, `tweenIn` / `tweenOut`, `fadeCameraIn` / `fadeCameraOutThen`) so every screen moves the same way, and it must respect `prefers-reduced-motion` (the helpers do). Lay the final layout out first, then tween *to* it. A scene takes `animate` / `fade` in `init(data)`; a rebuild of the same screen (language change, resize) restarts with `animate: false`. See README, Motion.
 - **Composition over Inheritance:** Favor composition of reusable behavior components (e.g., Health, Movement, Lifetime, Input) over multi-level class inheritance hierarchies for GameObjects.
 - **Type-Safety with Zod:** Use Zod schemas to validate raw configuration files, level data, external payloads, API responses, and custom event payloads before passing them to Phaser 4 scenes or logic units.
 

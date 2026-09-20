@@ -4,6 +4,7 @@ import type { Direction } from '../input/gamepadMapping';
 import type { NavigableItem } from '../input/NavigableItem';
 import { choiceOptionsSchema, type ChoiceOption } from './ChoiceChips';
 import { FocusFrame } from './FocusFrame';
+import { MOTION, prefersReducedMotion } from './motion';
 import { SETTINGS_COLORS } from './settingsTheme';
 import { gameTextStyle } from './textStyle';
 
@@ -33,6 +34,7 @@ export class ArrowSelector<T extends string> extends GameObjects.Container imple
     private readonly value: GameObjects.Text;
     private readonly frame: FocusFrame;
     private readonly onSelect: (value: T) => void;
+    private readonly slide: number;
     private index: number;
 
     constructor(scene: Scene, x: number, y: number, config: ArrowSelectorOptions<T>) {
@@ -41,6 +43,7 @@ export class ArrowSelector<T extends string> extends GameObjects.Container imple
         choiceOptionsSchema.parse(config.options);
         this.options = config.options;
         this.onSelect = config.onSelect;
+        this.slide = config.arrowSize * 0.9;
         this.index = Math.max(0, config.options.findIndex((option) => option.value === config.value));
 
         const half = config.fieldWidth / 2 + config.arrowSize;
@@ -113,11 +116,23 @@ export class ArrowSelector<T extends string> extends GameObjects.Container imple
         const count = this.options.length;
         this.index = (this.index + delta + count) % count;
         this.refresh();
+        this.slideValueIn(delta);
         emitUiSound('select');
         this.onSelect(this.options[this.index].value);
     }
 
     private refresh(): void {
         this.value.setText(this.options[this.index].label);
+    }
+
+    /** The new value drifts in from the side the player stepped toward, so the change reads as a slide. */
+    private slideValueIn(delta: number): void {
+        if (prefersReducedMotion()) {
+            return;
+        }
+
+        this.scene.tweens.killTweensOf(this.value);
+        this.value.setPosition(Math.sign(delta) * this.slide, 0).setAlpha(0.2);
+        this.scene.tweens.add({ targets: this.value, x: 0, alpha: 1, duration: MOTION.microMs, ease: MOTION.easeIn });
     }
 }
