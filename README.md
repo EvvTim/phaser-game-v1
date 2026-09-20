@@ -35,7 +35,7 @@ src/game/factories/     Object-pool factories (Phaser.GameObjects.Group wrappers
 src/game/i18n/          i18next setup, supported languages, RU/UA/EN/PL translations
 src/game/input/         Input helpers built on Phaser's native input plugins (gamepad, etc.)
 src/game/settings/      Persisted settings: Zod schema, localStorage-backed SettingsStore
-src/game/ui/            Reusable UI: MenuItem (main menu), the settings controls (ChoiceChips, ArrowSelector, LineSlider, TextButton), layouts, font
+src/game/ui/            Reusable UI: FullscreenButton, MenuItem (main menu), the settings controls (ChoiceChips, ArrowSelector, LineSlider, TextButton), layouts, font
 src/game/scenes/        Boot -> Preloader -> MainMenu -> Game -> GameOver, MainMenu -> Settings -> MainMenu
 ```
 
@@ -196,6 +196,39 @@ in `scenes/MainMenu.ts` and the list grows upward.
   anything implementing `input/NavigableItem.ts` (`Button` and `MenuItem` do).
 - The "Select" `GamepadHint` (bottom-right) shows only while a gamepad is
   connected; the bottom-left label is the `package.json` version.
+
+## Fullscreen button
+
+A small icon button in the top-right corner of every screen (main menu, settings,
+game, game over) — or the `F` key — toggles the browser's fullscreen. It lives in a scene of its own,
+`scenes/FullscreenOverlay.ts`: launched by `Boot`, never stopped, and registered
+**last** in the scene list so it draws above every other scene — so the one button
+appears everywhere instead of being rebuilt in each scene.
+
+- Uses Phaser's native `scale.toggleFullscreen()` — no custom Fullscreen API code. The
+  icon (`ui/FullscreenButton.ts`: a translucent plate with a thin cream rim and four
+  corner brackets drawn with `Graphics`, no assets; brackets on the outer corners
+  = "go fullscreen", pointing inward = "leave") follows Phaser's `ENTER_FULLSCREEN` /
+  `LEAVE_FULLSCREEN` events, so leaving with Esc updates it too. The button fires on
+  `pointerup`, which browsers accept as a valid gesture on touch screens too.
+- **The `F` key does the same** on every screen (the overlay scene is always running).
+  `input/fullscreenShortcut.ts` (`isFullscreenShortcut()`, tested) decides what counts:
+  the physical key (`event.code === 'KeyF'`, so it works on Russian / Ukrainian layouts
+  too), no auto-repeat (holding it would flip the mode back and forth), and no
+  Ctrl / Cmd / Alt (those are the browser's and the OS's: Ctrl+F is find-in-page,
+  Cmd+Ctrl+F is macOS fullscreen). Phaser handles key presses synchronously inside the
+  browser's own key event, so it counts as the user gesture that fullscreen requires.
+- Where the browser has no Fullscreen API (an iPhone), `scale.fullscreen.available` is
+  false and no button is created.
+- The canvas follows the window on its own (`game/main.ts` -> `syncCanvasSize` on the
+  window `resize` event), so entering or leaving fullscreen is just a resize; Phaser
+  wraps the canvas in a 100% x 100% element while fullscreen.
+- Position and size are pure math in `ui/fullscreenButtonLayout.ts`
+  (`computeFullscreenButtonLayout()`, tested): 46 px at 1920x1080, scaled with the
+  window, never below a fingertip-sized minimum, kept fully inside the window.
+- Not persisted: browsers only allow fullscreen from a user gesture (a click or a key press),
+  so it can't be restored on load. The corner is otherwise free on every screen, so nothing sits under
+  the button; keep it that way when adding UI there.
 
 ## Motion
 

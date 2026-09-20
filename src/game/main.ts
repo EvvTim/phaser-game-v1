@@ -1,4 +1,5 @@
 import { Audio } from './scenes/Audio';
+import { FullscreenOverlay } from './scenes/FullscreenOverlay';
 import { Boot } from './scenes/Boot';
 import { GameOver } from './scenes/GameOver';
 import { Game as MainGame } from './scenes/Game';
@@ -46,7 +47,18 @@ const StartGame = (parent: string): Game => {
             autoCenter: Scale.CENTER_BOTH,
         },
         // GamepadTest is a DEV-only screen, left out of production builds.
-        scene: [Boot, Audio, Preloader, MainMenu, MainGame, GameOver, Settings, ...(IS_DEV ? [GamepadTest] : [])],
+        // FullscreenOverlay goes last so its button draws above every other scene.
+        scene: [
+            Boot,
+            Audio,
+            Preloader,
+            MainMenu,
+            MainGame,
+            GameOver,
+            Settings,
+            ...(IS_DEV ? [GamepadTest] : []),
+            FullscreenOverlay,
+        ],
     };
 
     const game = new Game(config);

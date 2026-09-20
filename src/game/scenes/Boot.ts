@@ -17,6 +17,8 @@ export class Boot extends Scene {
     create(): void {
         // Runs alongside every other scene for the whole session (see scenes/Audio.ts).
         this.scene.launch('Audio');
+        // The fullscreen button, drawn above every scene (see scenes/FullscreenOverlay.ts).
+        this.scene.launch('FullscreenOverlay');
         this.scene.start('Preloader');
     }
 }
