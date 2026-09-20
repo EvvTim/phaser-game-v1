@@ -1,5 +1,6 @@
 import { Geom, Scale, Scene, Scenes } from 'phaser';
 import { version } from '../../../package.json';
+import type { UiSoundKind } from '../audio/uiSounds';
 import { toDevicePixels } from '../config/pixelRatio';
 import { EventBus } from '../events/EventBus';
 import { EVENTS } from '../events/GameEvents';
@@ -19,13 +20,14 @@ import { MenuItem } from '../ui/MenuItem';
 interface MainMenuEntry {
     label: string;
     scene: string;
+    sound: UiSoundKind;
 }
 
 /** The menu's options, top to bottom. Only Play and Settings for now. */
 function getEntries(): MainMenuEntry[] {
     return [
-        { label: t('mainMenu.play'), scene: 'Game' },
-        { label: t('mainMenu.settings'), scene: 'Settings' },
+        { label: t('mainMenu.play'), scene: 'Game', sound: 'confirm' },
+        { label: t('mainMenu.settings'), scene: 'Settings', sound: 'select' },
     ];
 }
 
@@ -64,6 +66,7 @@ export class MainMenu extends Scene {
                 label: entry.label.toLocaleUpperCase(getLanguage()),
                 idle: slot.idle,
                 active: slot.active,
+                sound: entry.sound,
                 onClick: () => this.scene.start(entry.scene),
                 onHover: () => navigator.focusItem(item),
             });

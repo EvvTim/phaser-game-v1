@@ -39,7 +39,10 @@ export const pl: Translation = {
             rawLayout: 'Surowe przyciski i osie (nierozpoznany układ)',
         },
         audio: {
-            music: 'Muzyka',
+            musicTrack: 'Wybór muzyki',
+            masterVolume: 'Głośność ogólna',
+            musicVolume: 'Głośność muzyki',
+            sfxVolume: 'Głośność efektów',
             track: 'Utwór {{number}}',
         },
     },

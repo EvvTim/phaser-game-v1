@@ -39,7 +39,10 @@ export const uk: Translation = {
             rawLayout: 'Кнопки й осі як є (розкладку не розпізнано)',
         },
         audio: {
-            music: 'Музика',
+            musicTrack: 'Музичний трек',
+            masterVolume: 'Загальна гучність',
+            musicVolume: 'Гучність музики',
+            sfxVolume: 'Гучність ефектів',
             track: 'Трек {{number}}',
         },
     },

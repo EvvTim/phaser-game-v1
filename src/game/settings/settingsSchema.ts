@@ -1,5 +1,11 @@
 import { z } from 'zod';
 import { DEFAULT_MUSIC_TRACK, MUSIC_TRACK_IDS } from '../audio/musicTracks';
+import {
+    DEFAULT_MASTER_VOLUME,
+    DEFAULT_MUSIC_VOLUME,
+    DEFAULT_SFX_VOLUME,
+    volumePercentSchema,
+} from '../audio/volume';
 import { DEFAULT_GLOW_QUALITY, GLOW_QUALITIES } from '../config/glowQuality';
 import { RENDER_QUALITIES } from '../config/pixelRatio';
 import { LANGUAGES, detectSystemLanguage } from '../i18n/languages';
@@ -18,6 +24,9 @@ export type LanguageSettings = z.infer<typeof languageSettingsSchema>;
 
 export const audioSettingsSchema = z.object({
     musicTrack: z.enum(MUSIC_TRACK_IDS).default(DEFAULT_MUSIC_TRACK),
+    masterVolume: volumePercentSchema.default(DEFAULT_MASTER_VOLUME),
+    musicVolume: volumePercentSchema.default(DEFAULT_MUSIC_VOLUME),
+    sfxVolume: volumePercentSchema.default(DEFAULT_SFX_VOLUME),
 });
 export type AudioSettings = z.infer<typeof audioSettingsSchema>;
 

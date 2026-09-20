@@ -1,5 +1,7 @@
 import { GameObjects, Scene } from 'phaser';
 import type { Filters } from 'phaser';
+import { emitUiSound } from '../audio/emitUiSound';
+import type { UiSoundKind } from '../audio/uiSounds';
 import { getGlowParams } from '../config/glowQuality';
 import { toDevicePixels } from '../config/pixelRatio';
 import { UI_ATLAS_KEY, UI_FRAMES } from './uiAtlas';
@@ -31,6 +33,8 @@ export interface ButtonConfig {
      * gamepad-focus glow.
      */
     selectedGlow?: boolean;
+    /** UI sound played when the button is activated (click or gamepad confirm); `null` for none. Default `'select'`. */
+    sound?: UiSoundKind | null;
 }
 
 /**
@@ -88,6 +92,7 @@ export class Button extends GameObjects.Container {
     private readonly background: GameObjects.NineSlice;
     private readonly label: GameObjects.Text;
     private readonly onClick: () => void;
+    private readonly sound: UiSoundKind | null;
     private focusGlow: Filters.Glow | null = null;
     private selectedGlowFilter: Filters.Glow | null = null;
     private readonly hasSelectedGlow: boolean;
@@ -99,6 +104,7 @@ export class Button extends GameObjects.Container {
         this.selected = config.selected ?? false;
         this.hasSelectedGlow = config.selectedGlow ?? false;
         this.onClick = config.onClick;
+        this.sound = config.sound === undefined ? 'select' : config.sound;
 
         const fallbackPadding: PaddingBox = {
             top: toDevicePixels(DEFAULT_PADDING_CSS.top),
@@ -145,7 +151,7 @@ export class Button extends GameObjects.Container {
         this.setSize(layout.width, layout.height);
 
         this.background.setInteractive({ useHandCursor: true });
-        this.background.on('pointerdown', this.onClick);
+        this.background.on('pointerdown', () => this.activate());
 
         this.applySelected();
     }
@@ -170,6 +176,9 @@ export class Button extends GameObjects.Container {
 
     /** Triggers this button's action programmatically (e.g. a gamepad confirm press). */
     activate(): void {
+        if (this.sound) {
+            emitUiSound(this.sound);
+        }
         this.onClick();
     }
 

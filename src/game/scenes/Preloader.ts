@@ -1,5 +1,6 @@
 import { Scene } from 'phaser';
 import { queueMusicTrack } from '../audio/musicTracks';
+import { queueUiSounds } from '../audio/uiSounds';
 import { toDevicePixels } from '../config/pixelRatio';
 import { SettingsStore } from '../settings/SettingsStore';
 import { GAMEPAD_ATLAS_KEY } from '../ui/gamepadPrompts';
@@ -36,6 +37,7 @@ export class Preloader extends Scene {
         this.load.image(MAIN_MENU_BG_KEY, 'ui/main-menu-bg.png');
         this.load.atlas(UI_ATLAS_KEY, 'ui/menu-atlas.png', 'ui/menu-atlas.json');
         this.load.atlas(GAMEPAD_ATLAS_KEY, 'gamepad/prompts-atlas.png', 'gamepad/prompts-atlas.json');
+        queueUiSounds(this.load);
         // Only the chosen track (a decoded one is ~70-90 MB); the Audio scene loads others on demand.
         queueMusicTrack(this.load, SettingsStore.get().audio.musicTrack);
     }

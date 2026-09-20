@@ -1,6 +1,7 @@
 import type { Scene } from 'phaser';
 import { Scenes } from 'phaser';
 import type { Input } from 'phaser';
+import { emitUiSound } from '../audio/emitUiSound';
 import type { NavigableItem } from './NavigableItem';
 import { findNextInDirection } from './spatialNavigation';
 import { detectGamepadMapping, readHatDirection, type Direction, type GamepadMapping } from './gamepadMapping';
@@ -132,6 +133,7 @@ export class GamepadNavigator {
 
         this.focusIndex = index;
         this.applyFocusVisuals();
+        emitUiSound('navigate');
     }
 
     private getMapping(pad: Gamepad): GamepadMapping {
@@ -199,6 +201,7 @@ export class GamepadNavigator {
 
         this.focusIndex = next;
         this.applyFocusVisuals();
+        emitUiSound('navigate');
     }
 
     private applyFocusVisuals(): void {

@@ -51,6 +51,8 @@ export class TabBar extends GameObjects.Container {
                     padding,
                     selected: tab.key === activeKey,
                     selectedGlow: true,
+                    // The Settings scene plays the tab sound itself, so clicks and L/R shoulder switches sound alike.
+                    sound: null,
                     onClick: () => options.onSelect(tab.key),
                 }),
         );

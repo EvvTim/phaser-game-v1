@@ -1,4 +1,5 @@
 import { GameObjects, Scene, Scenes } from 'phaser';
+import { emitUiSound } from '../audio/emitUiSound';
 import { MUSIC_TRACK_IDS } from '../audio/musicTracks';
 import { IS_DEV } from '../config/devMode';
 import { GLOW_QUALITIES } from '../config/glowQuality';
@@ -8,7 +9,9 @@ import { EventBus } from '../events/EventBus';
 import { t } from '../i18n/i18n';
 import { LANGUAGES, LANGUAGE_NATIVE_NAMES } from '../i18n/languages';
 import { GamepadNavigator } from '../input/GamepadNavigator';
+import { getSettingsChangeEffect } from '../settings/settingsChange';
 import { SettingsStore } from '../settings/SettingsStore';
+import type { Settings as GameSettings } from '../settings/settingsSchema';
 import { getVisibleTabs, resolveActiveTab, type SettingsTabKey } from '../settings/settingsTabs';
 import { Button } from '../ui/Button';
 import { GamepadHint } from '../ui/GamepadHint';
@@ -18,6 +21,7 @@ import { SectionHeading } from '../ui/SectionHeading';
 import { TabBar } from '../ui/TabBar';
 import { Title } from '../ui/Title';
 import { UI_ATLAS_KEY, UI_FRAMES } from '../ui/uiAtlas';
+import { VolumeSlider } from '../ui/VolumeSlider';
 import { PANEL_SLICE } from '../ui/panelSlice';
 
 /** The Controls tab (the gamepad tester) is DEV-only, so it's missing from production builds. */
@@ -27,6 +31,14 @@ type TabKey = SettingsTabKey;
 
 /** Vertical distance (CSS px) between stacked option rows in a settings tab. */
 const OPTION_ROW_SPACING = 100;
+
+/** Panel height (CSS px) per tab: the Audio tab stacks a track row and three volume rows, so it's taller. */
+const DEFAULT_PANEL_HEIGHT = 330;
+const PANEL_HEIGHTS: Partial<Record<TabKey, number>> = { audio: 450 };
+
+/** Vertical offsets (CSS px, in the content area) of the Audio tab's three volume rows. */
+const VOLUME_ROWS_TOP = 140;
+const VOLUME_ROW_SPACING = 60;
 
 interface OptionRowItem<T extends string> {
     value: T;
@@ -42,6 +54,8 @@ export class Settings extends Scene {
     private content!: GameObjects.Container;
     private backButton!: Button;
     private navigator!: GamepadNavigator;
+    private panel!: GameObjects.NineSlice;
+    private panelTop = 0;
     private activeTab: TabKey = 'display';
 
     constructor() {
@@ -68,22 +82,23 @@ export class Settings extends Scene {
         // two drift out of sync and the panel overlaps the title, exactly
         // like it did when both were hand-picked separately.
         const gapBelowTitle = toDevicePixels(20);
-        const panelHeight = toDevicePixels(330);
-        const panelY = titleY + title.height / 2 + gapBelowTitle + panelHeight / 2;
-        const panelTop = panelY - panelHeight / 2;
+        const panelTop = titleY + title.height / 2 + gapBelowTitle;
+        this.panelTop = panelTop;
 
-        this.add.nineslice(
+        // Sized (and centred) for the active tab by applyPanelHeight().
+        this.panel = this.add.nineslice(
             width / 2,
-            panelY,
+            panelTop,
             UI_ATLAS_KEY,
             UI_FRAMES.panelWood,
             toDevicePixels(700),
-            panelHeight,
+            toDevicePixels(DEFAULT_PANEL_HEIGHT),
             PANEL_SLICE.left,
             PANEL_SLICE.right,
             PANEL_SLICE.top,
             PANEL_SLICE.bottom,
         );
+        this.applyPanelHeight();
 
         const tabBarY = panelTop + toDevicePixels(55);
         this.tabBar = new TabBar(this, width / 2, tabBarY, {
@@ -114,12 +129,16 @@ export class Settings extends Scene {
             label: t('common.back'),
             width: toDevicePixels(150),
             height: toDevicePixels(44),
+            sound: 'back',
             onClick: () => this.scene.start('MainMenu'),
         });
         this.add.existing(this.backButton);
 
         this.navigator = new GamepadNavigator(this, {
-            onBack: () => this.scene.start('MainMenu'),
+            onBack: () => {
+                emitUiSound('back');
+                this.scene.start('MainMenu');
+            },
             onShoulderLeft: () => this.cycleTab(-1),
             onShoulderRight: () => this.cycleTab(1),
             onGamepadStatusChange: (mapping) => {
@@ -141,8 +160,18 @@ export class Settings extends Scene {
         // scratch so its own text/UI is redrawn at the new pixel ratio /
         // in the new language (main.ts applies the change first — its
         // SETTINGS_CHANGED listener is registered before any scene's).
-        const onSettingsChanged = (): void => {
-            this.scene.restart({ activeTab: this.activeTab });
+        // Volume changes must NOT rebuild anything (a slider may be mid-drag);
+        // see getSettingsChangeEffect.
+        let previousSettings = SettingsStore.get();
+        const onSettingsChanged = (settings: GameSettings): void => {
+            const effect = getSettingsChangeEffect(previousSettings, settings);
+            previousSettings = settings;
+
+            if (effect === 'restart') {
+                this.scene.restart({ activeTab: this.activeTab });
+            } else if (effect === 'rerender') {
+                this.renderActiveTab();
+            }
         };
         EventBus.on(EVENTS.SETTINGS_CHANGED, onSettingsChanged);
         this.events.once(Scenes.Events.SHUTDOWN, () => {
@@ -158,6 +187,7 @@ export class Settings extends Scene {
         this.activeTab = key;
         this.tabBar.setActiveTab(key);
         this.renderActiveTab();
+        emitUiSound('navigate');
     }
 
     /** L/R shoulder buttons jump directly between tabs (wrapping), independent of D-pad focus. */
@@ -167,7 +197,15 @@ export class Settings extends Scene {
         this.selectTab(TABS[nextIndex]);
     }
 
+    /** Sizes the wood panel for the active tab and keeps its top edge fixed. */
+    private applyPanelHeight(): void {
+        const height = toDevicePixels(PANEL_HEIGHTS[this.activeTab] ?? DEFAULT_PANEL_HEIGHT);
+        this.panel.setSize(this.panel.width, height);
+        this.panel.setY(this.panelTop + height / 2);
+    }
+
     private renderActiveTab(): void {
+        this.applyPanelHeight();
         this.content.removeAll(true);
 
         const contentButtons = this.renderTabContent();
@@ -222,15 +260,51 @@ export class Settings extends Scene {
         return [];
     }
 
-    /** Picking a track restarts this scene (SETTINGS_CHANGED), and the Audio scene switches to it at once. */
+    /**
+     * The music track row plus master / music / effects volume sliders. Picking a
+     * track rebuilds this tab (see getSettingsChangeEffect) and the Audio scene
+     * switches to it at once; volumes apply live and, for master and effects,
+     * play a preview sound when released so the new level can be heard.
+     */
     private renderAudioTab(): Button[] {
-        return this.renderOptionRow(
+        const { audio } = SettingsStore.get();
+
+        const trackButtons = this.renderOptionRow(
             0,
-            t('settings.audio.music'),
+            t('settings.audio.musicTrack'),
             MUSIC_TRACK_IDS.map((id, index) => ({ value: id, label: t('settings.audio.track', { number: index + 1 }) })),
-            SettingsStore.get().audio.musicTrack,
+            audio.musicTrack,
             (musicTrack) => SettingsStore.setAudio({ musicTrack }),
         );
+
+        const previewSound = (): void => emitUiSound('select');
+        const rows = [
+            {
+                label: t('settings.audio.masterVolume'),
+                value: audio.masterVolume,
+                onChange: (masterVolume: number) => SettingsStore.setAudio({ masterVolume }),
+                onCommit: previewSound,
+            },
+            {
+                label: t('settings.audio.musicVolume'),
+                value: audio.musicVolume,
+                onChange: (musicVolume: number) => SettingsStore.setAudio({ musicVolume }),
+            },
+            {
+                label: t('settings.audio.sfxVolume'),
+                value: audio.sfxVolume,
+                onChange: (sfxVolume: number) => SettingsStore.setAudio({ sfxVolume }),
+                onCommit: previewSound,
+            },
+        ];
+
+        const sliderButtons = rows.flatMap((row, index) => {
+            const slider = new VolumeSlider(this, 0, toDevicePixels(VOLUME_ROWS_TOP + index * VOLUME_ROW_SPACING), row);
+            this.content.add(slider);
+            return [...slider.buttons];
+        });
+
+        return [...trackButtons, ...sliderButtons];
     }
 
     private renderLanguageTab(): Button[] {

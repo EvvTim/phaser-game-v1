@@ -18,9 +18,6 @@ const TRACK_FILES: Readonly<Record<MusicTrackId, string>> = {
     theme4: 'main-theme4.m4a',
 };
 
-/** Menu music level (0-1). */
-export const MUSIC_VOLUME = 0.5;
-
 /** Fade durations (ms) when the music starts, stops or changes track. */
 export const MUSIC_FADE_IN_MS = 700;
 export const MUSIC_FADE_OUT_MS = 400;

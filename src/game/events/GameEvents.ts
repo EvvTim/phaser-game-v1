@@ -10,6 +10,8 @@ export const EVENTS = Object.freeze({
     MUSIC_MENU_START: 'music-menu-start',
     /** Menu music is no longer wanted (e.g. gameplay started): fade it out. */
     MUSIC_STOP: 'music-stop',
+    /** A UI sound effect should play; the payload is a UiSoundKind (see audio/uiSounds.ts). */
+    UI_SOUND: 'ui-sound',
 } as const);
 
 export type GameEventName = (typeof EVENTS)[keyof typeof EVENTS];

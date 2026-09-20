@@ -45,7 +45,10 @@ export const en = {
             rawLayout: 'Raw buttons and axes (layout not recognized)',
         },
         audio: {
-            music: 'Music',
+            musicTrack: 'Music track',
+            masterVolume: 'Master volume',
+            musicVolume: 'Music volume',
+            sfxVolume: 'Effects volume',
             track: 'Track {{number}}',
         },
     },

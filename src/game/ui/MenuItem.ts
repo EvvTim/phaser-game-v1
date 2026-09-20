@@ -1,4 +1,6 @@
 import { GameObjects, Scene } from 'phaser';
+import { emitUiSound } from '../audio/emitUiSound';
+import type { UiSoundKind } from '../audio/uiSounds';
 import type { NavigableItem } from '../input/NavigableItem';
 import type { MenuItemState } from './mainMenuLayout';
 import { MENU_FONT_STACK, MENU_FONT_WEIGHT } from './menuFont';
@@ -11,6 +13,8 @@ export interface MenuItemConfig {
     idle: MenuItemState;
     active: MenuItemState;
     onClick: () => void;
+    /** UI sound played when the item is activated; `null` for none. Default `'select'`. */
+    sound?: UiSoundKind | null;
     /** Mouse moved onto the item — the scene moves the highlight here (see GamepadNavigator#focusItem). */
     onHover?: () => void;
 }
@@ -35,12 +39,14 @@ export class MenuItem extends GameObjects.Container implements NavigableItem {
     private readonly plate: GameObjects.Image;
     private readonly label: GameObjects.Text;
     private readonly onClick: () => void;
+    private readonly sound: UiSoundKind | null;
     private readonly states: Record<MenuItemSkin, MenuItemState>;
 
     constructor(scene: Scene, x: number, y: number, config: MenuItemConfig) {
         super(scene, x, y);
 
         this.onClick = config.onClick;
+        this.sound = config.sound === undefined ? 'select' : config.sound;
         this.states = { idle: config.idle, active: config.active };
 
         this.plate = scene.add.image(0, 0, '__DEFAULT');
@@ -59,7 +65,7 @@ export class MenuItem extends GameObjects.Container implements NavigableItem {
         const { width, height } = config.active;
         this.setSize(width, height);
         const hitArea = scene.add.zone(width / 2, 0, width, height).setInteractive({ useHandCursor: true });
-        hitArea.on('pointerdown', this.onClick);
+        hitArea.on('pointerdown', () => this.activate());
         if (config.onHover) {
             hitArea.on('pointerover', config.onHover);
         }
@@ -75,6 +81,9 @@ export class MenuItem extends GameObjects.Container implements NavigableItem {
 
     /** Triggers this item's action programmatically (e.g. a gamepad confirm press). */
     activate(): void {
+        if (this.sound) {
+            emitUiSound(this.sound);
+        }
         this.onClick();
     }
 

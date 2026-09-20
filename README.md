@@ -195,6 +195,25 @@ a different track). Settings -> Audio picks which one plays
   loads another on demand when it's picked, and the previous one is dropped from
   the audio cache. Stopping (entering `Game`) keeps the buffer, so returning to the
   menu resumes instantly.
+- **Volumes** (Settings -> Audio, whole percents 0-100, persisted in `audio`):
+  master (100), music (50) and effects (70). Music plays at master x music and
+  effects at master x effects (`audio/volume.ts`: `getMusicGain`/`getSfxGain`,
+  tested); they apply live — the Audio scene re-reads them on `SETTINGS_CHANGED`,
+  so the playing track follows the slider as it is dragged.
+- **UI sounds** (`audio/uiSounds.ts`): scenes and components call
+  `emitUiSound(kind)` (`audio/emitUiSound.ts`), which emits `EVENTS.UI_SOUND`; the
+  Audio scene validates the payload with Zod and plays it at the effects volume
+  (each kind has a small relative gain; the same sound isn't restarted within
+  35 ms; nothing is played while the browser still blocks audio, so no burst of
+  queued sounds at the first click). The four sounds are loaded by the
+  Preloader. Where they fire:
+  `navigate` — `GamepadNavigator` when focus actually moves (D-pad and mouse
+  hover) and a Settings tab switch; `select` — any `Button` / `MenuItem`
+  activation (a `sound` option changes or silences it: `TabBar` buttons and the
+  volume -/+ buttons are silent, `Settings` plays the tab sound itself);
+  `confirm` — Play; `back` — the Back button and the pad's back button. A
+  volume change from the master or effects row plays a `select` preview on
+  release.
 - `decideMusicAction()` in `audio/musicTracks.ts` is the pure "stop / play / load /
   nothing" decision, unit-tested; tweak volume and fades there (`MUSIC_VOLUME`,
   `MUSIC_FADE_*`).
@@ -232,6 +251,19 @@ plus live axis values — the tool for working out an unknown device's layout
 would mislead). The platform Guide/Home button has no artwork (the pack's
 license excludes Guide buttons), so it's a text chip.
 
+- The Audio tab has the music track row and three volume rows built from
+  `ui/VolumeSlider.ts`: label, `-`, the UI kit's segmented wood bar (an empty
+  frame with the full one cropped over it, so it fills smoothly), `+`, and the
+  percent. Click or drag the bar (snaps to 5%; the drag keeps working outside
+  the bar) or use `-`/`+` (10% steps) — those are plain `Button`s, so the D-pad
+  focuses them (`slider.buttons` goes to `GamepadNavigator#setItems`). The panel
+  is taller on this tab (`PANEL_HEIGHTS` in `scenes/Settings.ts`).
+- The Settings scene no longer restarts on every change:
+  `getSettingsChangeEffect()` (`settings/settingsChange.ts`, tested) says
+  `restart` for render/glow quality and language, `rerender` (just the current
+  tab) for the music track, and `none` for volumes — rebuilding a slider while it
+  is being dragged would end the drag. Add any new setting that a control
+  updates in place to that function's `none` case.
 - `src/game/settings/settingsSchema.ts` — Zod schema for the persisted shape.
   Extend this (with a default for every new field, so old saved data still
   parses) as each tab gets real settings.
@@ -297,6 +329,24 @@ by AL2009man (MIT; license in `public/assets/gamepad/`) — see
 `art-source/gamepad/README.md` for how the atlas is built and how to add an
 icon. Only use this pack, not the author's separate "Gamepad Asset Pack"
 (controller overlays), which isn't cleared for commercial games.
+
+UI sound effects (`public/assets/sfx/`, each as `.ogg` + `.m4a` so Safari, which
+doesn't play Ogg, gets one too) come from Kenney's
+[Interface Sounds](https://kenney.nl/assets/interface-sounds), CC0 (no
+attribution required; license text kept next to them). Picked for being short,
+clean and at a similar level; how they are played is described under Audio.
+
+| File | Original | Meant for |
+|---|---|---|
+| `ui-navigate` | `tick_001` (0.05 s) | focus moved (D-pad, mouse hover, tab switch) |
+| `ui-select` | `select_003` (0.38 s) | picking an option / activating a button |
+| `ui-confirm` | `confirmation_003` (0.32 s, -1 dB) | the main action (e.g. Play) |
+| `ui-back` | `back_002` (0.09 s, -3 dB) | going back |
+
+Other CC0 candidates in the same pack (and in Kenney's UI Audio pack,
+`kenney.nl/assets/ui-audio`) if a sound doesn't fit: `tick_004`,
+`select_001`/`004`, `confirmation_001`, `toggle_001`, `back_004`,
+`rollover1-6`. To swap one, re-encode it to `.ogg` + `.m4a` with the same name.
 
 Static files (audio, spritesheets, etc.) go in `public/assets` and are
 loaded via `this.load.image('key', 'assets/file.png')`. Imported/bundled
