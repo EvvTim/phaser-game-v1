@@ -9,6 +9,8 @@ import { GamepadNavigator } from '../input/GamepadNavigator';
 import { SettingsStore } from '../settings/SettingsStore';
 import { Button } from '../ui/Button';
 import { GamepadHint } from '../ui/GamepadHint';
+import { GamepadTester } from '../ui/GamepadTester';
+import { getPromptFrame } from '../ui/gamepadPrompts';
 import { SectionHeading } from '../ui/SectionHeading';
 import { TabBar } from '../ui/TabBar';
 import { Title } from '../ui/Title';
@@ -84,14 +86,19 @@ export class Settings extends Scene {
         this.add.existing(this.tabBar);
 
         // Only shown while a gamepad is connected (see onGamepadStatusChange
-        // below) — text-only for now, swap for button-icon assets later
-        // without touching this positioning.
+        // below); the icons match the connected controller's brand.
         const panelHalfWidth = toDevicePixels(350);
-        const hintGap = toDevicePixels(25);
+        const hintGap = toDevicePixels(40);
         const leftTabHint = new GamepadHint(this, width / 2 - panelHalfWidth - hintGap, tabBarY);
         this.add.existing(leftTabHint);
         const rightTabHint = new GamepadHint(this, width / 2 + panelHalfWidth + hintGap, tabBarY);
         this.add.existing(rightTabHint);
+
+        const hintsY = height - toDevicePixels(60);
+        const confirmHint = new GamepadHint(this, width - toDevicePixels(250), hintsY);
+        this.add.existing(confirmHint);
+        const backHint = new GamepadHint(this, width - toDevicePixels(100), hintsY);
+        this.add.existing(backHint);
 
         this.content = this.add.container(width / 2, panelTop + toDevicePixels(110));
 
@@ -109,11 +116,14 @@ export class Settings extends Scene {
             onShoulderRight: () => this.cycleTab(1),
             onGamepadStatusChange: (mapping) => {
                 if (mapping) {
-                    leftTabHint.show(mapping.shoulderLeftLabel);
-                    rightTabHint.show(mapping.shoulderRightLabel);
+                    leftTabHint.show(getPromptFrame(mapping.family, 'shoulderLeft'));
+                    rightTabHint.show(getPromptFrame(mapping.family, 'shoulderRight'));
+                    confirmHint.show(getPromptFrame(mapping.family, 'confirm'), t('hints.confirm'));
+                    backHint.show(getPromptFrame(mapping.family, 'back'), t('hints.back'));
                 } else {
-                    leftTabHint.hide();
-                    rightTabHint.hide();
+                    for (const hint of [leftTabHint, rightTabHint, confirmHint, backHint]) {
+                        hint.hide();
+                    }
                 }
             },
         });
@@ -166,6 +176,8 @@ export class Settings extends Scene {
                 return this.renderDisplayTab();
             case 'language':
                 return this.renderLanguageTab();
+            case 'controls':
+                return this.renderControlsTab();
             default:
                 return this.renderStubTab();
         }
@@ -190,6 +202,12 @@ export class Settings extends Scene {
                 (value) => SettingsStore.setDisplay({ glowQuality: value }),
             ),
         ];
+    }
+
+    /** Live gamepad test; it has no buttons of its own, so D-pad focus stays on Back. */
+    private renderControlsTab(): Button[] {
+        this.content.add(new GamepadTester(this, 0, 0));
+        return [];
     }
 
     private renderLanguageTab(): Button[] {

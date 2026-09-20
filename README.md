@@ -41,17 +41,23 @@ src/game/scenes/        Boot -> Preloader -> MainMenu -> Game -> GameOver, MainM
 Gamepad support uses Phaser's built-in `Input.Gamepad` plugin (enabled via
 `input.gamepad: true` in `game/main.ts`) rather than raw `navigator.getGamepads()`.
 
-- `src/game/input/gamepadMapping.ts` — per-controller button/axis indices.
-  Not every controller reports the W3C "standard" gamepad layout — very new
-  hardware the browser doesn't have in its mapping database yet reports
-  `mapping: ''`, and its real indices (buttons *and* which axis the D-pad
-  lands on, if it's not even button-based) have to be found empirically.
-  Currently has `STANDARD_MAPPING` plus one hardcoded, empirically-measured
-  entry for the Nintendo Switch 2 Pro Controller (D-pad is a single hat-style
-  axis, not 4 buttons) — add another entry here as new non-standard
-  controllers turn up. Confirm/back follow *that controller's own*
-  convention (e.g. Nintendo's right-face-button-confirms, not Xbox's
-  bottom-button-confirms), not a hardcoded global choice.
+- `src/game/input/gamepadMapping.ts` — per-controller button/axis indices
+  and brand conventions. Any pad the browser recognizes reports the W3C
+  "standard" layout (same indices for Xbox, DualShock/DualSense, Switch Pro,
+  Steam Deck and most third-party pads), so support for those is a matter of
+  telling brands apart: `detectControllerFamily()` reads the USB vendor id
+  out of the pad's `id` (Chrome, Firefox and Safari format it differently)
+  or falls back to its name, and picks one of `STANDARD_MAPPINGS`
+  (`xbox` / `playstation` / `nintendo` / `steam` / `generic`). The family
+  decides the confirm/back convention (Nintendo's right-face-button "A"
+  confirms; everyone else's bottom button does), the printed button names,
+  and which prompt icons are shown. An unrecognized pad is `generic`
+  (Xbox-style). Very new hardware the browser doesn't have in its database
+  yet reports `mapping: ''`, and its real indices (buttons *and* which axis
+  the D-pad lands on, if it's not even button-based) have to be found
+  empirically — there's one hardcoded, measured entry for the Nintendo
+  Switch 2 Pro Controller (D-pad is a single hat-style axis, not 4 buttons);
+  add another as new non-standard controllers turn up.
 - `src/game/input/GamepadNavigator.ts` — one per scene; give it the
   navigable `Button[]` via `setItems()` (rebuild it whenever that set
   changes, e.g. Settings on tab switch; the first item gets focus). The D-pad
@@ -66,9 +72,10 @@ Gamepad support uses Phaser's built-in `Input.Gamepad` plugin (enabled via
   (or a click), and focus then lands on the section's first interactive
   element. `onGamepadStatusChange` reports the first
   connected pad's mapping (or `null`) — Settings uses it to show/hide the
-  `ui/GamepadHint.ts` "L"/"R" labels next to the tab bar only while a
-  gamepad is actually connected, using that mapping's own button names
-  (`shoulderLeftLabel`/`shoulderRightLabel`) rather than a hardcoded guess.
+  `ui/GamepadHint.ts` prompts (L/R beside the tab bar, confirm/back in the
+  footer) only while a gamepad is actually connected, with icons chosen for
+  that mapping's `family` via `ui/gamepadPrompts.ts` (PlayStation shows
+  Cross/Circle, Nintendo shows L/R, the rest L1/R1 and A/B).
   Remember to remove any `pad.on('down', ...)` / plugin listener you add
   elsewhere on scene shutdown — the physical device's Gamepad wrapper
   outlives any one scene, so an un-removed listener leaks and keeps firing
@@ -129,8 +136,21 @@ UI text uses [i18next](https://www.i18next.com) with four languages: Russian
 ## Settings screen
 
 Reachable from MainMenu -> Settings. Tabs: Display, Controls, Language,
-Audio — Display and Language are implemented; Controls and Audio render a
+Audio — Display, Controls and Language are implemented; Audio renders a
 "Coming soon" stub until built out.
+
+The **Controls** tab is a live gamepad tester (`src/game/ui/GamepadTester.ts`)
+for checking that every button of a connected controller works — browsers
+only expose a pad after its first button press, so it asks for one. A pad the
+browser maps as `standard` gets a controller-shaped diagram of that brand's
+prompt icons (`ui/gamepadLayout.ts` holds the positions): pressed buttons
+turn yellow and inverted, the D-pad shows its direction, sticks show
+deflection and click. Any other pad gets a raw grid of every button index
+plus live axis values — the tool for working out an unknown device's layout
+(names are shown only for mappings measured on real hardware, i.e.
+`GamepadMapping.measured`; otherwise plain `#index`, since guessed names
+would mislead). The platform Guide/Home button has no artwork (the pack's
+license excludes Guide buttons), so it's a text chip.
 
 - `src/game/settings/settingsSchema.ts` — Zod schema for the persisted shape.
   Extend this (with a default for every new field, so old saved data still
@@ -176,6 +196,12 @@ Audio — Display and Language are implemented; Controls and Audio render a
   `MainMenu` and `Settings` position it before the panel, not inside it.
 
 ## Assets
+
+Button-prompt icons come from [Gamepad Prompt Asset Pack](https://github.com/AL2009man/Gamepad-Prompt-Asset-Pack)
+by AL2009man (MIT; license in `public/assets/gamepad/`) — see
+`art-source/gamepad/README.md` for how the atlas is built and how to add an
+icon. Only use this pack, not the author's separate "Gamepad Asset Pack"
+(controller overlays), which isn't cleared for commercial games.
 
 Static files (audio, spritesheets, etc.) go in `public/assets` and are
 loaded via `this.load.image('key', 'assets/file.png')`. Imported/bundled

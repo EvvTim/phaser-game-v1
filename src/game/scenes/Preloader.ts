@@ -1,5 +1,6 @@
 import { Scene } from 'phaser';
 import { toDevicePixels } from '../config/pixelRatio';
+import { GAMEPAD_ATLAS_KEY } from '../ui/gamepadPrompts';
 import { UI_ATLAS_KEY } from '../ui/uiAtlas';
 
 /**
@@ -29,6 +30,7 @@ export class Preloader extends Scene {
     preload(): void {
         this.load.setPath('assets');
         this.load.atlas(UI_ATLAS_KEY, 'ui/menu-atlas.png', 'ui/menu-atlas.json');
+        this.load.atlas(GAMEPAD_ATLAS_KEY, 'gamepad/prompts-atlas.png', 'gamepad/prompts-atlas.json');
     }
 
     create(): void {

@@ -4,6 +4,10 @@ export const ru: Translation = {
     common: {
         back: '< Назад',
     },
+    hints: {
+        confirm: 'Выбрать',
+        back: 'Назад',
+    },
     mainMenu: {
         title: 'Главное меню',
         play: 'Играть',
@@ -29,6 +33,11 @@ export const ru: Translation = {
         },
         language: {
             heading: 'Язык',
+        },
+        controls: {
+            noGamepad: 'Подключите геймпад и нажмите любую кнопку',
+            rawButtons: 'Кнопки и оси как есть',
+            rawLayout: 'Кнопки и оси как есть (раскладка не распознана)',
         },
         comingSoon: 'Скоро...',
     },

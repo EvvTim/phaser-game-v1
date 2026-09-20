@@ -46,6 +46,9 @@
 - **Adding a setting:** schema field + default → `SettingsStore` setter (if new section) → apply it at startup and on change in `game/main.ts` (display settings via `applyDisplaySettings`) → UI in the Settings scene → i18n keys in all 4 locales → tests.
 
 ### 6. Gamepad UI
+- **Controller support:** identify a pad's brand through `detectControllerFamily()` (`input/gamepadMapping.ts`) — never hardcode Xbox assumptions. New non-standard hardware gets an empirically measured entry (use `gamepadLogger.ts`), not a guessed one. Confirm/back follow the brand's own convention (Nintendo: right face button confirms).
+- **Gamepad tester:** Settings -> Controls (`ui/GamepadTester.ts`) must keep covering every standard button (0-16) — `ui/gamepadLayout.ts` has a test for it. For a non-standard pad show raw `#index` chips, and only trust `buttonLabels` when the mapping is `measured`.
+- **Prompts:** show button icons via `GamepadHint` + `getPromptFrame(family, role)` (`ui/gamepadPrompts.ts`) so they match the connected controller; icons come from AL2009man's Gamepad Prompt Asset Pack (MIT, credit kept in `public/assets/gamepad/`), built by `art-source/gamepad/build-atlas.mjs`. Do not use the same author's "Gamepad Asset Pack" (controller overlays) in the game — its licensing isn't cleared for commercial use.
 - Focus is moved by the D-pad to the nearest button in that direction (`input/spatialNavigation.ts`); tabs are NOT D-pad targets — they switch only with **L / R** (or a click), and after a switch focus starts on the first interactive element of the section (or Back if it has none).
 - Visual cues: yellow Glow = active tab (`Button` `selectedGlow`), cyan Glow = gamepad focus, yellow tint = selected option. Glow filters are created lazily and only for those buttons (each one costs a render pass); their quality is a user setting (`config/glowQuality.ts`, default low).
 

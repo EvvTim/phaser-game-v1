@@ -10,6 +10,10 @@ export const en = {
     common: {
         back: '< Back',
     },
+    hints: {
+        confirm: 'Select',
+        back: 'Back',
+    },
     mainMenu: {
         title: 'Main Menu',
         play: 'Play',
@@ -35,6 +39,11 @@ export const en = {
         },
         language: {
             heading: 'Language',
+        },
+        controls: {
+            noGamepad: 'Connect a controller and press any button',
+            rawButtons: 'Raw buttons and axes',
+            rawLayout: 'Raw buttons and axes (layout not recognized)',
         },
         comingSoon: 'Coming soon...',
     },

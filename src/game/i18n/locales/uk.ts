@@ -4,6 +4,10 @@ export const uk: Translation = {
     common: {
         back: '< Назад',
     },
+    hints: {
+        confirm: 'Вибрати',
+        back: 'Назад',
+    },
     mainMenu: {
         title: 'Головне меню',
         play: 'Грати',
@@ -29,6 +33,11 @@ export const uk: Translation = {
         },
         language: {
             heading: 'Мова',
+        },
+        controls: {
+            noGamepad: 'Підключіть геймпад і натисніть будь-яку кнопку',
+            rawButtons: 'Кнопки й осі як є',
+            rawLayout: 'Кнопки й осі як є (розкладку не розпізнано)',
         },
         comingSoon: 'Незабаром...',
     },

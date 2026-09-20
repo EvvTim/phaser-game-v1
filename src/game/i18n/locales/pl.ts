@@ -4,6 +4,10 @@ export const pl: Translation = {
     common: {
         back: '< Wstecz',
     },
+    hints: {
+        confirm: 'Wybierz',
+        back: 'Wstecz',
+    },
     mainMenu: {
         title: 'Menu główne',
         play: 'Graj',
@@ -29,6 +33,11 @@ export const pl: Translation = {
         },
         language: {
             heading: 'Język',
+        },
+        controls: {
+            noGamepad: 'Podłącz kontroler i naciśnij dowolny przycisk',
+            rawButtons: 'Surowe przyciski i osie',
+            rawLayout: 'Surowe przyciski i osie (nierozpoznany układ)',
         },
         comingSoon: 'Wkrótce...',
     },
