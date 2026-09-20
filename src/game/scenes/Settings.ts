@@ -1,4 +1,5 @@
 import { GameObjects, Scene, Scenes } from 'phaser';
+import { IS_DEV } from '../config/devMode';
 import { GLOW_QUALITIES } from '../config/glowQuality';
 import { RENDER_QUALITIES, toDevicePixels } from '../config/pixelRatio';
 import { EVENTS } from '../events/GameEvents';
@@ -7,6 +8,7 @@ import { t } from '../i18n/i18n';
 import { LANGUAGES, LANGUAGE_NATIVE_NAMES } from '../i18n/languages';
 import { GamepadNavigator } from '../input/GamepadNavigator';
 import { SettingsStore } from '../settings/SettingsStore';
+import { getVisibleTabs, resolveActiveTab, type SettingsTabKey } from '../settings/settingsTabs';
 import { Button } from '../ui/Button';
 import { GamepadHint } from '../ui/GamepadHint';
 import { GamepadTester } from '../ui/GamepadTester';
@@ -17,9 +19,10 @@ import { Title } from '../ui/Title';
 import { UI_ATLAS_KEY, UI_FRAMES } from '../ui/uiAtlas';
 import { PANEL_SLICE } from '../ui/panelSlice';
 
-const TABS = ['display', 'controls', 'language', 'audio'] as const;
+/** The Controls tab (the gamepad tester) is DEV-only, so it's missing from production builds. */
+const TABS = getVisibleTabs(IS_DEV);
 
-type TabKey = (typeof TABS)[number];
+type TabKey = SettingsTabKey;
 
 /** Vertical distance (CSS px) between stacked option rows in a settings tab. */
 const OPTION_ROW_SPACING = 100;
@@ -45,7 +48,7 @@ export class Settings extends Scene {
     }
 
     init(data: SettingsSceneData): void {
-        this.activeTab = data.activeTab ?? 'display';
+        this.activeTab = resolveActiveTab(data.activeTab, TABS);
     }
 
     create(): void {
@@ -206,7 +209,11 @@ export class Settings extends Scene {
 
     /** Live gamepad test; it has no buttons of its own, so D-pad focus stays on Back. */
     private renderControlsTab(): Button[] {
-        this.content.add(new GamepadTester(this, 0, 0));
+        // The tab itself is hidden outside DEV; this guard also lets the
+        // bundler drop GamepadTester (and its layout data) from production.
+        if (IS_DEV) {
+            this.content.add(new GamepadTester(this, 0, 0));
+        }
         return [];
     }
 
